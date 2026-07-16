@@ -48,6 +48,18 @@ def test_production_configuration_rejects_local_infrastructure():
         )
 
 
+def test_production_allows_sqlite_on_an_absolute_persistent_volume():
+    settings = Settings(
+        environment="production",
+        secret_key="x" * 40,
+        database_url="sqlite:////data/assetflow.db",
+        allowed_hosts=["assetflow.example.com"],
+        upload_dir="/data/uploads",
+    )
+    assert settings.database_url == "sqlite:////data/assetflow.db"
+    assert settings.secure_cookies is True
+
+
 def test_jwt_algorithm_is_restricted_to_audited_hs256():
     with pytest.raises(ValidationError):
         Settings(environment="test", jwt_algorithm="ES256")

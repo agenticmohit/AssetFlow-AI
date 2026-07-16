@@ -60,8 +60,12 @@ class Settings(BaseSettings):
                 raise ValueError("Production requires a secret key of at least 32 characters")
             if self.debug:
                 raise ValueError("Debug must be disabled in production")
-            if self.database_url.startswith("sqlite"):
-                raise ValueError("Production requires PostgreSQL; SQLite is for development only")
+            if self.database_url.startswith("sqlite") and not self.database_url.startswith(
+                "sqlite:////"
+            ):
+                raise ValueError(
+                    "Production SQLite requires an absolute path on a persistent volume"
+                )
             if any(host in {"*", "localhost", "127.0.0.1", "testserver"} for host in self.allowed_hosts):
                 raise ValueError("Production allowed hosts must contain only deployed hostnames")
         if self.max_upload_bytes < 1024 or self.max_upload_bytes > 50 * 1024 * 1024:

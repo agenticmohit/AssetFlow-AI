@@ -16,10 +16,10 @@ COPY templates ./templates
 COPY static ./static
 
 RUN useradd --create-home --uid 10001 assetflow \
-    && mkdir -p /app/var/uploads \
-    && chown -R assetflow:assetflow /app
+    && mkdir -p /app/var/uploads /data \
+    && chown -R assetflow:assetflow /app /data
 
 USER assetflow
 EXPOSE 8000
 
-CMD ["sh", "-c", "exec uvicorn assetflow.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-2}"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn assetflow.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-1}"]
