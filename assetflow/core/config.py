@@ -38,9 +38,14 @@ class Settings(BaseSettings):
     def split_hosts(cls, value):
         return [host.strip() for host in value.split(",") if host.strip()] if isinstance(value, str) else value
 
-    @field_validator("database_url")
+    @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
+        value = str(value).strip()
+        if value.startswith("/"):
+            return f"sqlite:///{value}"
+        if "://" not in value and value.lower().endswith((".db", ".sqlite", ".sqlite3")):
+            return f"sqlite:///{value}"
         if value.startswith("postgres://"):
             return "postgresql+psycopg://" + value.removeprefix("postgres://")
         if value.startswith("postgresql://"):

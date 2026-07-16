@@ -1,5 +1,6 @@
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.engine import make_url
 
 from assetflow.core.config import Settings
 from assetflow.main import create_app
@@ -58,6 +59,30 @@ def test_production_allows_sqlite_on_an_absolute_persistent_volume():
     )
     assert settings.database_url == "sqlite:////data/assetflow.db"
     assert settings.secure_cookies is True
+
+
+def test_production_normalizes_railway_bare_sqlite_path():
+    settings = Settings(
+        environment="production",
+        secret_key="x" * 40,
+        database_url="/data/assetflow.db",
+        allowed_hosts=["assetflow.example.com"],
+        upload_dir="/data/uploads",
+    )
+    assert settings.database_url == "sqlite:////data/assetflow.db"
+
+
+def test_railway_database_url_alias_normalizes_bare_sqlite_path(monkeypatch):
+    monkeypatch.setenv("ASSETFLOW_ENVIRONMENT", "production")
+    monkeypatch.setenv("ASSETFLOW_SECRET_KEY", "x" * 40)
+    monkeypatch.setenv("ASSETFLOW_ALLOWED_HOSTS", "assetflow.example.com")
+    monkeypatch.setenv("ASSETFLOW_UPLOAD_DIR", "/data/uploads")
+    monkeypatch.setenv("DATABASE_URL", "/data/assetflow.db")
+    settings = Settings(_env_file=None)
+    assert settings.database_url == "sqlite:////data/assetflow.db"
+    parsed = make_url(settings.database_url)
+    assert parsed.drivername == "sqlite"
+    assert parsed.database == "/data/assetflow.db"
 
 
 def test_jwt_algorithm_is_restricted_to_audited_hs256():
