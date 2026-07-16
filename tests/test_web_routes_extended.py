@@ -178,6 +178,60 @@ def test_upload_validation_and_not_found_paths(client, settings):
     assert too_large.status_code == 413
 
 
+def test_upload_can_create_and_use_a_new_project_inline(client, db):
+    web_owner(client)
+    upload_page = client.get("/assets/new")
+    assert upload_page.status_code == 200
+    assert "Create a new project" in upload_page.text
+    assert 'name="new_project_name"' in upload_page.text
+
+    created = client.post(
+        "/assets",
+        data={
+            "project_id": "new",
+            "new_project_name": "Summer campaign",
+            "new_client_name": "Acme",
+            "title": "Launch poster",
+            "asset_type": "Poster",
+            "notes": "Review the new direction",
+        },
+        files={"file": ("launch.webp", b"webp-preview", "image/webp")},
+        follow_redirects=False,
+    )
+
+    assert created.status_code == 303
+    asset_id = int(created.headers["location"].rsplit("/", 1)[1])
+    db.expire_all()
+    asset = db.get(Asset, asset_id)
+    assert asset is not None
+    assert asset.project.name == "Summer campaign"
+    assert asset.project.client_name == "Acme"
+    assert asset.title == "Launch poster"
+    assert (
+        db.scalar(select(func.count(Project.id)).where(Project.name == "Summer campaign"))
+        == 1
+    )
+
+
+def test_inline_project_is_not_created_when_upload_is_invalid(client, db):
+    web_owner(client)
+    response = client.post(
+        "/assets",
+        data={
+            "project_id": "new",
+            "new_project_name": "Should not exist",
+            "title": "Bad upload",
+        },
+        files={"file": ("bad.exe", b"bad", "application/octet-stream")},
+    )
+
+    assert response.status_code == 415
+    assert (
+        db.scalar(select(func.count(Project.id)).where(Project.name == "Should not exist"))
+        == 0
+    )
+
+
 def test_designer_view_and_web_permissions(client, db):
     owner_headers = web_owner(client)
     project_id = client.post(

@@ -71,7 +71,7 @@ def test_theme_assets_are_available_on_public_and_auth_pages(client):
     for path in ("/", "/login", "/signup"):
         page = client.get(path)
         assert "/static/theme-init.js?v=1" in page.text
-        assert "/static/theme.css?v=night-12" in page.text
+        assert "/static/theme.css?v=night-13" in page.text
         assert "data-theme-toggle" in page.text
 
 

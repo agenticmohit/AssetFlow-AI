@@ -538,13 +538,38 @@ def new_asset_page(request: Request, project_id: int | None = None, db: Session 
 
 
 @router.post("/assets")
-async def create_asset(request: Request, project_id: int = Form(...), title: str = Form(...), asset_type: str = Form("Design"), notes: str = Form(""), file: UploadFile = None, db: Session = Depends(get_db)):
+async def create_asset(
+    request: Request,
+    project_id: str = Form(""),
+    title: str = Form(...),
+    asset_type: str = Form("Design"),
+    notes: str = Form(""),
+    new_project_name: str = Form(""),
+    new_client_name: str = Form(""),
+    file: UploadFile = None,
+    db: Session = Depends(get_db),
+):
     user, membership = require_workspace(request, db)
     if not user or not membership:
         return RedirectResponse("/login", status_code=303)
-    project = db.scalar(select(Project).where(Project.id == project_id, Project.workspace_id == membership.workspace_id))
-    if not project:
-        return HTMLResponse("Project not found", 404)
+    create_inline = project_id == "new"
+    if create_inline and membership.role == Role.DESIGNER:
+        return HTMLResponse("Your role cannot create projects", 403)
+    if create_inline and len(new_project_name.strip()) < 2:
+        return HTMLResponse("Enter a project name", 422)
+    if not create_inline:
+        try:
+            selected_project_id = int(project_id)
+        except (TypeError, ValueError):
+            return HTMLResponse("Choose a project", 422)
+        project = db.scalar(
+            select(Project).where(
+                Project.id == selected_project_id,
+                Project.workspace_id == membership.workspace_id,
+            )
+        )
+        if not project:
+            return HTMLResponse("Project not found", 404)
     if not file:
         return HTMLResponse("Choose a design preview", 422)
     try:
@@ -553,6 +578,16 @@ async def create_asset(request: Request, project_id: int = Form(...), title: str
         return HTMLResponse("File too large", 413)
     if not file_url:
         return HTMLResponse("Unsupported file type", 415)
+    if create_inline:
+        project = Project(
+            workspace_id=membership.workspace_id,
+            name=new_project_name.strip(),
+            client_name=new_client_name.strip() or None,
+            description="",
+            client_review_enabled=bool(new_client_name.strip()),
+        )
+        db.add(project)
+        db.flush()
     asset = Asset(project_id=project.id, title=title.strip(), asset_type=asset_type.strip(), status=AssetStatus.IN_REVIEW, assigned_designer_id=user.id)
     db.add(asset)
     db.flush()
