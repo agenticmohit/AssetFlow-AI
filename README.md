@@ -1,101 +1,75 @@
-# AssetFlow AI
+# AssetFlow
 
-Creative feedback, revision, and approval workspace for designers and remote creative teams. AssetFlow is deliberately not a source-file or final-delivery drive.
+### Clear feedback. Faster revisions. Confident approvals.
 
-## Architecture
+AssetFlow is a focused project and feedback workspace for freelance designers. It brings design previews, client conversations, revision tasks, versions, and approvals into one calm place—without asking clients to learn another project-management tool.
 
-The application uses a layered structure:
+Designers keep their original working files in the tools and drives they already use. AssetFlow holds the active review conversation around lightweight previews, so creative work can move forward without scattered messages or ambiguous decisions.
 
-- `assetflow/api/routes`: versionable JSON API endpoints
-- `assetflow/web`: HTMX/Jinja browser interface
-- `assetflow/services`: business rules and transactional workflows
-- `assetflow/db`: SQLAlchemy models, sessions, and deterministic demo seed
-- `assetflow/schemas`: validated request/response contracts
-- `assetflow/core`: configuration, security, and structured errors
-- `tests`: isolated API and domain integration tests
-- `migrations`: Alembic database migrations
+## Why AssetFlow
 
-SQLite is the development database. Production can use Supabase Postgres by changing `ASSETFLOW_DATABASE_URL`; the application and service layers require no rewrite.
+Creative feedback often arrives through a mix of chat messages, email threads, calls, screenshots, and voice notes. Important changes get buried, reviewers lose track of the latest version, and “approved” can still feel unclear.
 
-## Local setup
+AssetFlow creates a simple feedback loop:
+
+1. Upload a design preview to a project.
+2. Share a private review link with the client.
+3. Discuss feedback in a color-coded, threaded conversation.
+4. Turn requested changes into a practical revision checklist.
+5. Upload the next version and keep the context together.
+6. Record a clear approval or complete the design.
+
+## What it includes
+
+- A colorful designer dashboard for projects, active reviews, and approvals
+- Project spaces that keep related designs and conversations together
+- Client review links that work without requiring a client account
+- Threaded comments, replies, role labels, filters, and expressive reactions
+- Clear states for review, requested changes, approval, and completion
+- Revision checklists generated from real feedback
+- On-demand AI summaries that surface themes and next actions
+- Version history for active design reviews
+- Project and design management with deliberate confirmation for destructive actions
+- Responsive light and dark themes across designer and client experiences
+
+## Designed around the freelancer–client relationship
+
+The designer owns the workspace and manages projects, designs, revisions, and delivery progress. Clients receive a focused review surface where they can view the current design, comment, reply, request changes, or approve.
+
+There is no heavy client onboarding and no expectation that AssetFlow replaces the designer’s local folders or cloud drive. Original files stay with the designer; AssetFlow keeps the review process clear while the work is active.
+
+## AI with a purpose
+
+AI features are optional and run only when the designer requests them. They summarize written feedback and help turn it into actionable revision tasks. The goal is to reduce interpretation work—not to replace the designer’s judgment or invent feedback.
+
+## Beta
+
+AssetFlow is currently an early beta focused on the complete freelance design-review workflow. The product is being refined around clarity, speed, client simplicity, and a visually expressive experience for modern creative teams.
+
+## Run locally
+
+Local development requires Python 3.12 or newer.
 
 ```powershell
 py -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements-dev.txt
 copy .env.example .env
-# Paste your key after OPENAI_API_KEY= in .env (optional)
 alembic upgrade head
 uvicorn assetflow.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000`. API documentation is at `/docs`.
+Open `http://127.0.0.1:8000`.
 
-Demo login: `designer@assetflow.demo` / `AssetFlow123!`
-
-The local `.env` file is already ignored by Git. Leave `OPENAI_API_KEY` blank to run without API calls. With a key, `gpt-4o-mini` is called only when a designer asks for a feedback summary or task list. Requests use small output limits, one SDK retry, a 30-second action cooldown, and a five-request hourly allowance per user. Only feedback text is sent; design files are never sent to the model. Failed task generation can fall back to a local checklist, while summaries clearly report that AI is unavailable instead of imitating an AI result.
-
-## Beta workflow
-
-1. Create a project and upload a lightweight design preview.
-2. Collect color-coded team feedback and threaded client replies.
-3. Convert revisions into persistent tasks and upload the next version.
-4. Share a secure client link; clients comment or approve without an account.
-5. Approval starts a 10-day preview grace period. The preview is then deleted while the project, comments, tasks, version notes, and decision remain.
-
-Run the idempotent cleanup job daily:
-
-```powershell
-python -m assetflow.jobs.cleanup_previews
-```
-
-See `docs/STORAGE_LIFECYCLE.md` for the exact boundary between temporary previews and persistent collaboration history.
-
-## Quality checks
-
-```powershell
-pytest --cov=assetflow --cov-report=term-missing
-ruff check assetflow tests
-pip check
-```
-
-The coverage threshold is enforced at 80% with branch coverage enabled.
-
-## Operational endpoints
-
-- `/health/live`: process liveness
-- `/health/ready`: database readiness
-
-Responses contain `x-request-id` and `x-response-time-ms` headers. Unhandled production errors return a safe error ID while full details are written to server logs.
-
-## Production notes
-
-- Set a strong `ASSETFLOW_SECRET_KEY` and disable debug.
-- Set `ASSETFLOW_DATABASE_URL` to the Supabase pooled Postgres connection string.
-- Set `ASSETFLOW_ALLOWED_HOSTS` to the deployed hostname only.
-- Run Alembic migrations as a release step, before starting new application instances.
-- Store temporary review previews in a private object bucket; local disk is development-only. This is not a user-facing storage product.
-- Schedule `python -m assetflow.jobs.cleanup_previews` at least daily.
-- Run multiple Uvicorn workers behind a reverse proxy/load balancer.
-- Keep `/health/ready` connected to deployment readiness probes.
-- Use rolling deployments so old instances remain available until new instances pass readiness.
-
-## Railway deployment
-
-The root `Dockerfile` is detected automatically. `railway.json` runs Alembic before release, checks `/health/ready`, and applies bounded restart and drain settings.
-
-Create a Railway Postgres service and set:
+The local demo account is:
 
 ```text
-ASSETFLOW_ENVIRONMENT=production
-DATABASE_URL=${{Postgres.DATABASE_URL}}
-ASSETFLOW_SECRET_KEY=<at-least-32-random-characters>
-ASSETFLOW_ALLOWED_HOSTS=<your-public-domain>,healthcheck.railway.app
-ASSETFLOW_UPLOAD_DIR=/app/var/uploads
-OPENAI_API_KEY=<optional-secret>
-ASSETFLOW_OPENAI_MODEL=gpt-4o-mini
+Email: designer@assetflow.demo
+Password: AssetFlow123!
 ```
 
-Attach a small Railway volume at `/app/var/uploads` while active previews use local media. Keep one replica with that volume. Move previews to private object storage before scaling horizontally; the collaboration history already remains in Postgres.
+An OpenAI API key is optional for local development. Add it to `.env` to enable live AI feedback summaries and task suggestions; the rest of the product works without it.
 
-See `docs/PRODUCTION_READINESS.md` for the release gate, security controls, and infrastructure still required outside the repository.
+## Feedback
+
+AssetFlow is being built for designers who want a sharper, friendlier alternative to collecting creative feedback in scattered messages. Product feedback, workflow ideas, and thoughtful bug reports are welcome through GitHub Issues.
