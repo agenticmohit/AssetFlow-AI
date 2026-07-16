@@ -1,0 +1,29 @@
+<div class="grid grid-cols-3 gap-5 mt-5">
+{% for a in assets %}
+  <div class="creative-card-shell" x-show="typeof filter === 'undefined' || filter==='All' || filter==='{{a.status}}' || (filter==='Needs action' && '{{a.status}}'==='Changes Requested')">
+    <a href="/assets/{{a.id}}" class="creative-card creative-card-tone-{{loop.index0 % 4}}">
+      <div class="creative-cover">
+        <div class="creative-orb orb-one"></div><div class="creative-orb orb-two"></div>
+        <img src="{{a.image}}" alt="{{a.title}}">
+        <div class="creative-topline">
+          <span class="media-pill">{{'📱' if a.type == 'Instagram post' else '🎠' if a.type == 'Carousel' else '⚡' if a.type == 'Meta ad' else '🎨'}} {{a.type}}</span>
+          <span class="status status-{{a.status|lower|replace(' ','-')}}">{{'🔥 ' if a.status == 'Changes Requested' else '👀 ' if a.status == 'Ready for Review' else '✨ ' if a.status == 'Approved' else '✓ ' if a.status == 'Completed' else '✏️ '}}{{a.status}}</span>
+        </div>
+        <span class="creative-version">V{{a.version}}</span><span class="open-review">Open review <b>↗</b></span>
+      </div>
+      <div class="creative-body">
+        <div class="creative-meta"><span>{{a.client}}</span><i></i><span>{{a.project}}</span></div>
+        <h3>{{a.title}}</h3>
+        <div class="creative-signals"><span>💬 {{a.comments}} comments</span><span>◫ {{a.version}} versions</span><span class="ml-auto">{{a.progress}} tasks</span></div>
+        <div class="creative-footer"><span class="avatar creative-avatar">{{a.assignee}}</span><div><b>Assigned creative</b><small>{{a.due}} · {{a.status}}</small></div><span class="review-arrow">→</span></div>
+      </div>
+    </a>
+    {% if project_management %}
+    <div class="project-design-actions">
+      <a href="/assets/{{a.id}}">Open design <span>↗</span></a>
+      <button type="button" data-title="{{a.title}}" @click="deleteAsset={{a.id}};deleteAssetName=$el.dataset.title" aria-label="Delete {{a.title}}"><span>⌫</span> Delete</button>
+    </div>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>

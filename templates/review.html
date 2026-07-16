@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Review {{asset.title}} · AssetFlow{% endblock %}
+{% block body %}
+<div class="public-review" x-data="{changes:false,replyTo:'',replyName:'',commentFilter:'all'}">
+  <header class="public-header">
+    <span class="logo-mark">A</span><span class="font-semibold ml-3">AssetFlow</span>
+    <span class="review-badge">Client review</span>
+    <div class="ml-auto text-xs public-security-note">No account needed · Secure design link</div><button type="button" class="public-theme-toggle" data-theme-toggle aria-label="Switch to dark mode" title="Switch colour theme"><span class="theme-toggle-icon" aria-hidden="true">◐</span></button>
+  </header>
+  <main class="max-w-7xl mx-auto p-8">
+    <div class="public-title-row flex items-end">
+      <div class="min-w-0">
+        <p class="eyebrow">{{asset.client}} · {{asset.project}}</p>
+        <h1 class="display">{{asset.title}}</h1>
+        <p class="text-sm text-black/40 mt-1">Version {{asset.version}} · Ready for your feedback</p>
+      </div>
+      <div class="ml-auto flex gap-2">
+        <button @click="changes=true" class="btn-light">↻ Request changes</button>
+        <form hx-post="/review/t/{{token}}/decision" hx-target="#review-status">
+          <input type="hidden" name="status" value="approved"><button class="btn-dark">✓ Approve design</button>
+        </form>
+      </div>
+    </div>
+    <div class="public-lifecycle">
+      <span>🔒</span>
+      <p><b>A focused review space.</b> Keep the original design file saved in your own drive; this link keeps decisions and feedback together.</p>
+      <div id="review-status">{% include "partials/status.html" %}</div>
+    </div>
+    <div class="public-grid grid grid-cols-[1fr_380px] gap-6 mt-4">
+      <div class="preview-stage public-design-stage"><img src="{{asset.image}}" alt="{{asset.title}}"></div>
+      <div class="panel p-5 flex flex-col min-w-0 public-feedback-panel">
+        <div class="flex items-start gap-3">
+          <div><h3 class="font-semibold">Feedback thread</h3><p class="text-xs text-black/40 mt-1">Your comments go directly to the designer.</p></div>
+          <span class="thread-live ml-auto"><i></i> Live</span>
+        </div>
+        <div class="feedback-filters public-filters">
+          <button @click="commentFilter='all'" :class="commentFilter==='all'?'active':''">All</button>
+          <button @click="commentFilter='designer'" :class="commentFilter==='designer'?'active':''"><i class="dot dot-designer"></i>Designer</button>
+          <button @click="commentFilter='client'" :class="commentFilter==='client'?'active':''"><i class="dot dot-client"></i>Client</button>
+        </div>
+        <div id="comments" class="my-5 space-y-4 flex-1 feedback-thread feedback-scroll public-thread-scroll">
+          {% for comment in comments %}{% include "partials/comment.html" %}{% else %}
+            <p id="no-comments" class="text-sm text-black/40 py-8 text-center">Be the first to leave feedback ✨</p>
+          {% endfor %}
+        </div>
+        <form hx-post="/review/t/{{token}}/comments" hx-target="#comments" hx-swap="beforeend" @htmx:after-request="$event.target.reset();replyTo='';replyName=''" class="public-composer">
+          <input type="hidden" name="parent_id" :value="replyTo">
+          <div x-show="replyTo" class="reply-banner">Replying to <b x-text="replyName"></b><button type="button" @click="replyTo='';replyName=''">×</button></div>
+          <label>Your name<input class="field" name="name" required minlength="2" maxlength="120" placeholder="Client name"></label>
+          <label>Feedback<textarea class="field h-28" name="text" required maxlength="5000" placeholder="What works? What should change? Drop an emoji too 😊"></textarea></label>
+          <button class="btn-dark w-full justify-center mt-3">Send feedback ↑</button>
+        </form>
+      </div>
+    </div>
+  </main>
+  <div x-show="changes" x-transition class="modal">
+    <div @click.outside="changes=false" class="modal-card">
+      <button @click="changes=false" class="modal-close">×</button>
+      <p class="eyebrow">Request a revision</p>
+      <h2 class="display text-3xl mt-1">What should the designer change?</h2>
+      <p class="text-sm text-black/50 mt-3">This note becomes part of the feedback thread, so the designer has clear direction.</p>
+      <form action="/review/t/{{token}}/change-request" method="post" class="mt-5">
+        <label class="field-label">Your name</label><input class="field" name="name" required minlength="2" maxlength="120" placeholder="Client name">
+        <label class="field-label">Change request</label><textarea class="field h-32" name="text" required minlength="2" maxlength="5000" placeholder="Please adjust the headline, spacing, colour, or crop…"></textarea>
+        <button class="btn-dark w-full justify-center mt-4">Send change request →</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

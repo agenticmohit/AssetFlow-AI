@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{project.name}} · AssetFlow{% endblock %}
+{% block body %}
+<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar:true,filter:'All',deleteProject:false,deleteAsset:null,deleteAssetName:''}">
+  {% include "sidebar.html" %}
+  <main class="ml-[276px] min-h-screen app-canvas">
+    <header class="page-header">
+      <button class="menu-toggle" @click="sidebar=!sidebar" aria-label="Toggle navigation">☰</button>
+      <div><a href="/projects">Projects</a><b>{{project.name}}</b></div>
+      <div class="project-header-actions ml-auto">
+        {% if can_manage %}<button type="button" class="btn-danger" @click="deleteProject=true">⌫ Delete project</button>{% endif %}
+        <a href="/assets/new?project_id={{project.id}}" class="btn-dark">＋ Add design</a>
+      </div>
+    </header>
+    <section class="page-section">
+      <div class="project-hero">
+        <div>
+          <p class="eyebrow">{{project.client_name or 'Internal creative team'}}</p>
+          <h1 class="display">{{project.name}}<span>.</span></h1>
+          <p>{{project.description or 'A collaborative feedback loop for this project.'}}</p>
+        </div>
+        <div class="project-hero-art"><span>💬</span><span>🎨</span><span>✓</span></div>
+      </div>
+      <div class="flex items-end mt-10">
+        <div><h2 class="section-title">Designs in this project</h2><p class="text-sm text-black/40 mt-1">{{assets|length}} active review items</p></div>
+      </div>
+      {% include "partials/asset_grid.html" %}
+      {% if not assets %}
+      <div class="empty-state"><span>🖼️</span><h3>Add the first design preview</h3><p>Source files stay on your drive. AssetFlow only holds the temporary preview used for feedback.</p><a href="/assets/new?project_id={{project.id}}" class="btn-dark">Add design →</a></div>
+      {% endif %}
+    </section>
+  </main>
+
+  <div x-show="deleteAsset" x-transition class="modal">
+    <div @click.outside="deleteAsset=null" class="modal-card delete-confirm-card">
+      <button type="button" @click="deleteAsset=null" class="modal-close" aria-label="Close design deletion">×</button>
+      <div class="delete-modal-icon">⌫</div>
+      <p class="eyebrow">Remove design</p>
+      <h2 class="display text-3xl mt-1">Delete <span x-text="deleteAssetName"></span>?</h2>
+      <p class="text-sm text-black/50 mt-3">This removes its previews, versions, feedback, tasks and active review links. Your original source file is not affected.</p>
+      <p class="delete-warning">This action cannot be undone.</p>
+      <div class="delete-modal-actions">
+        <button type="button" class="btn-light" @click="deleteAsset=null">Keep design</button>
+        <form method="post" :action="'/assets/' + deleteAsset + '/delete"><button class="btn-danger-solid">Delete design</button></form>
+      </div>
+    </div>
+  </div>
+
+  {% if can_manage %}
+  <div x-show="deleteProject" x-transition class="modal">
+    <div @click.outside="deleteProject=false" class="modal-card delete-confirm-card project-delete-card">
+      <button type="button" @click="deleteProject=false" class="modal-close" aria-label="Close project deletion">×</button>
+      <div class="delete-modal-icon">⌫</div>
+      <p class="eyebrow">Delete project</p>
+      <h2 class="display text-3xl mt-1">Delete {{project.name}}?</h2>
+      <p class="text-sm text-black/50 mt-3">This permanently removes the project and all {{assets|length}} design review item{{'' if assets|length == 1 else 's'}}, including feedback, tasks, versions and review links.</p>
+      <p class="delete-warning">Your original files remain in your drive, but this workspace history cannot be recovered.</p>
+      <div class="delete-modal-actions">
+        <button type="button" class="btn-light" @click="deleteProject=false">Keep project</button>
+        <form method="post" action="/projects/{{project.id}}/delete"><button class="btn-danger-solid">Delete project</button></form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,1 @@
+<button id="task-{{task.id}}" hx-post="/tasks/{{task.id}}/toggle" hx-target="#task-{{task.id}}" hx-swap="outerHTML" class="task {{'done' if task.done else ''}}"><span class="checkbox">{{'✓' if task.done else ''}}</span><span>{{task.text}}</span></button>

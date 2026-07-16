@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}AssetFlow — Clear design feedback, faster approvals{% endblock %}
+{% block description %}AssetFlow gives freelance designers one focused place to collect client feedback, manage revisions, and get designs approved.{% endblock %}
+{% block robots %}<meta name="robots" content="index, follow">{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="/static/landing.css?v=2">{% endblock %}
+{% block body %}
+<div class="landing-page">
+  <nav class="landing-nav" aria-label="Main navigation">
+    <a class="landing-brand" href="/"><span class="logo-mark">A</span><span>AssetFlow</span></a>
+    <div class="landing-links"><a href="#problem">The problem</a><a href="#solution">The solution</a><a href="#workflow">How it works</a></div>
+    <div class="landing-actions"><a class="landing-signin" href="/login">Sign in</a><a class="landing-button small" href="/signup">Start free <span>→</span></a></div>
+  </nav>
+
+  <main>
+    <section class="landing-hero">
+      <div class="landing-hero-copy">
+        <span class="landing-kicker"><i></i> Built for freelance designers</span>
+        <h1>Creative work moves faster when feedback has a <em>home.</em></h1>
+        <p>Stop translating scattered messages into revision lists. Share one focused review space where clients can comment, request changes, and approve the work.</p>
+        <div class="landing-hero-actions"><a class="landing-button" href="/signup">Start your first review <span>→</span></a><a class="landing-text-link" href="#workflow">See the workflow <span>↓</span></a></div>
+        <div class="landing-trust"><span>✓ No client account needed</span><span>✓ Clear version history</span><span>✓ AI summaries on demand</span></div>
+      </div>
+
+      <div class="landing-product" aria-label="AssetFlow product preview">
+        <div class="product-window-bar"><span></span><span></span><span></span><b>assetflow.app / review</b><i>Secure link</i></div>
+        <div class="product-window-body">
+          <div class="product-design">
+            <div class="product-design-head"><div><small>ESSENTIALS DROP</small><b>Wear Less Noise</b></div><span>V2</span></div>
+            <div class="product-art"><img src="/static/demo/essentials-streetwear.png" alt="Streetwear campaign design"></div>
+            <div class="product-status"><span><i></i> Changes requested</span><b>3/4 revisions</b></div>
+          </div>
+          <div class="product-feedback">
+            <div class="product-feedback-head"><div><b>Feedback thread</b><small>One clear conversation</small></div><span><i></i> Live</span></div>
+            <div class="product-filters"><b>All</b><span><i class="blue"></i>Designer</span><span><i class="coral"></i>Client</span></div>
+            <article class="product-comment designer"><div class="comment-role"><i></i><b>Designer</b><span>10:24 AM</span></div><p>Just uploaded v2. The headline has more breathing room — let me know what you think! 🎨</p></article>
+            <article class="product-comment client"><div class="comment-role"><i></i><b>Client</b><span>10:32 AM</span></div><p>This feels strong. Could we warm the CTA and move it away from the edge? 👍</p></article>
+            <article class="product-comment designer reply"><div class="comment-role"><i></i><b>Designer</b><span>10:45 AM</span></div><p>Absolutely — I’ll tune both in the next pass. ✨</p></article>
+            <div class="product-approved"><span>✓</span><div><b>Direction is clear</b><small>Ready for the next revision</small></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-problem" id="problem">
+      <div class="section-intro"><span class="landing-section-label">The real problem</span><h2>Your design is not stuck.<br><em>The feedback loop is.</em></h2><p>Great creative work slows down when every decision lives in a different place.</p></div>
+      <div class="pain-grid">
+        <article><span class="pain-icon coral">↗</span><h3>Feedback everywhere</h3><p>Email, chat, calls, and screenshots leave you rebuilding the brief after every review.</p><small>“Which comment is current?”</small></article>
+        <article><span class="pain-icon lilac">?</span><h3>Vague direction</h3><p>“Make it pop” creates another round because the decision was never made specific.</p><small>“What exactly should change?”</small></article>
+        <article><span class="pain-icon lime">◌</span><h3>Approval limbo</h3><p>Positive comments are not the same as a clear final decision you can act on.</p><small>“Is this actually approved?”</small></article>
+      </div>
+    </section>
+
+    <section class="landing-solution" id="solution">
+      <div class="solution-copy"><span class="landing-section-label light">The AssetFlow difference</span><h2>One link turns feedback into forward motion.</h2><p>AssetFlow keeps the design, conversation, revision checklist, and decision in one focused workspace—without trying to replace your drive.</p><a class="landing-button" href="/signup">Build your review space <span>→</span></a></div>
+      <div class="solution-cards">
+        <article class="solution-card share"><span>↗</span><div><small>SHARE FOR REVIEW</small><h3>A client-ready link in seconds.</h3><p>Send the current version without onboarding your client into another complicated tool.</p></div></article>
+        <article class="solution-card roles"><div class="role-pills"><span><i></i>Designer</span><span><i></i>Client</span></div><div><small>CONTEXT THAT STAYS CLEAR</small><h3>Know who said what.</h3><p>Colour-coded roles, threaded replies, and change-request status keep the loop readable.</p></div></article>
+        <article class="solution-card ai"><span>✦</span><div><small>AI WHEN YOU ASK</small><h3>Turn comments into next actions.</h3><p>Summarize real feedback and create a revision checklist without sending the design file.</p></div></article>
+      </div>
+    </section>
+
+    <section class="landing-workflow" id="workflow">
+      <div class="section-intro centered"><span class="landing-section-label">A calmer creative loop</span><h2>From first look to final yes.</h2></div>
+      <div class="landing-steps">
+        <article><b>01</b><span>⇧</span><h3>Upload a preview</h3><p>Keep source files in your own drive. Add only the version that needs feedback.</p></article>
+        <i>→</i><article><b>02</b><span>↗</span><h3>Share for review</h3><p>Give your client one secure place to comment and request specific changes.</p></article>
+        <i>→</i><article><b>03</b><span>✓</span><h3>Revise and approve</h3><p>Track actions, upload the next version, and capture a clear final decision.</p></article>
+      </div>
+    </section>
+
+    <section class="landing-final-cta"><span>Ready for less chasing?</span><h2>Give your next design review<br>a place to move forward.</h2><p>Start with one project. Invite clients only when the work is ready to review.</p><div><a class="landing-button" href="/signup">Create your workspace <span>→</span></a><a class="landing-cta-secondary" href="/login">Sign in</a></div></section>
+  </main>
+
+  <footer class="landing-footer"><a class="landing-brand" href="/"><span class="logo-mark">A</span><span>AssetFlow</span></a><p>Focused design feedback for freelance creatives.</p><div><a href="/login">Sign in</a><a href="/signup">Create workspace</a></div></footer>
+</div>
+{% endblock %}

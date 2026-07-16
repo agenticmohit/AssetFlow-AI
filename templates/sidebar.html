@@ -1,0 +1,16 @@
+<aside class="fixed inset-y-3 left-3 w-64 p-4 flex flex-col z-30 sidebar-shell" x-cloak x-show="sidebar" x-transition.opacity.duration.180ms>
+  <div class="sidebar-brand-row"><a href="/" class="flex items-center gap-3 px-2 py-2"><span class="logo-mark">A</span><span class="font-semibold tracking-tight text-lg">AssetFlow</span><span class="beta-tag">BETA</span></a><button type="button" class="sidebar-close" @click="sidebar=false" aria-label="Close navigation">×</button></div>
+  <div class="mt-8 nav-label">Workspace</div>
+  <nav class="mt-3 space-y-1 text-sm">
+    <a href="/" class="nav-item {{'active' if active_nav == 'overview' else ''}}"><span>⌂</span> Overview</a>
+    <a href="/projects" class="nav-item {{'active' if active_nav == 'projects' else ''}}"><span>◫</span> Projects <b class="ml-auto nav-count">{{projects|length}}</b></a>
+    <a href="/assets" class="nav-item {{'active' if active_nav == 'assets' else ''}}"><span>◇</span> All assets</a>
+    <a href="/approvals" class="nav-item {{'active' if active_nav == 'approvals' else ''}}"><span>✓</span> Approvals</a>
+  </nav>
+  <div class="mt-8 flex items-center px-3"><span class="nav-label p-0">Your projects</span>{% if can_manage %}<a href="/projects/new" class="ml-auto nav-add" title="Create project">＋</a>{% endif %}</div>
+  <div class="mt-3 space-y-1 overflow-auto sidebar-project-list">{% for p in projects %}<a href="/projects/{{p.id}}" class="nav-item text-[13px]"><i class="w-2 h-2 rounded-full flex-none" style="background:{{p.color}}"></i><span class="truncate">{{p.name}}</span></a>{% else %}<p class="px-3 text-xs sidebar-muted">No projects yet</p>{% endfor %}</div>
+  <div class="mt-auto">
+    <div class="profile-card"><span class="avatar profile-avatar">{{current_user.name[:2]|upper}}</span><div class="min-w-0"><div class="text-sm font-medium truncate">{{current_user.name}}</div><div class="text-xs sidebar-muted">Designer</div></div><a href="/logout" class="logout-btn" title="Sign out" aria-label="Sign out">↪</a></div>
+  </div>
+</aside>
+<button type="button" class="sidebar-scrim" x-cloak x-show="sidebar" x-transition.opacity @click="sidebar=false" aria-label="Close navigation"></button>

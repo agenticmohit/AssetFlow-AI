@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Sign in · AssetFlow{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="/static/auth.css?v=2">{% endblock %}
+{% block body %}
+<main class="access-page">
+  <header class="access-nav">
+    <a class="access-brand" href="/" aria-label="AssetFlow homepage">
+      <span class="logo-mark">A</span>
+      <span>AssetFlow</span>
+    </a>
+    <a class="access-home" href="/" aria-label="Return to homepage">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>
+      <span>Home</span>
+    </a>
+  </header>
+
+  <section class="access-stage">
+    <div class="access-orb access-orb-one"></div>
+    <div class="access-orb access-orb-two"></div>
+    <div class="access-note access-note-left" aria-hidden="true">
+      <span class="access-note-dot coral"></span>
+      <div><b>Client feedback</b><small>CTA direction is clear ✦</small></div>
+    </div>
+    <div class="access-note access-note-right" aria-hidden="true">
+      <span class="access-note-check">✓</span>
+      <div><b>Review approved</b><small>Ready for final delivery</small></div>
+    </div>
+
+    <div class="access-card">
+      <div class="access-card-heading">
+        <span class="access-kicker"><i></i> Designer workspace</span>
+        <h1>Welcome back.</h1>
+        <p>Sign in to continue your projects, feedback, and client reviews.</p>
+      </div>
+
+      {% set error = request.query_params.get('error') %}
+      {% if error %}
+      <div class="access-error" role="alert">
+        <span>!</span>
+        <p>{{ 'Enter your email and password to continue.' if error == 'missing' else 'That email or password does not match. Try again.' }}</p>
+      </div>
+      {% endif %}
+
+      <form class="access-form" method="post" action="/login">
+        <label>
+          <span>Email address</span>
+          <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@studio.com" required autofocus>
+        </label>
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+        </label>
+        <button class="access-submit" type="submit">
+          <span>Sign in</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </form>
+
+      <div class="access-switch">
+        <span>New to AssetFlow?</span>
+        <a href="/signup">Create your workspace</a>
+      </div>
+    </div>
+  </section>
+
+  <p class="access-footnote">A focused feedback workspace for freelance designers.</p>
+</main>
+{% endblock %}

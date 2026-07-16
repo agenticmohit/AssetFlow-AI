@@ -1,0 +1,66 @@
+from datetime import datetime, timedelta
+
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session
+
+from assetflow.core.errors import AppError, NotFoundError
+from assetflow.core.security import new_token, token_hash
+from assetflow.db.models import Asset, AssetStatus, Comment, ReviewLink
+
+
+class ReviewService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_link(self, asset: Asset) -> tuple[ReviewLink, str]:
+        # Generating a new link also revokes links that may have been forwarded.
+        self.db.execute(
+            update(ReviewLink)
+            .where(ReviewLink.asset_id == asset.id, ReviewLink.is_active.is_(True))
+            .values(is_active=False)
+        )
+        raw, hashed = new_token()
+        link = ReviewLink(
+            asset_id=asset.id,
+            token_hash=hashed,
+            expires_at=datetime.utcnow() + timedelta(days=30),
+        )
+        self.db.add(link)
+        self.db.commit()
+        return link, raw
+
+    def resolve(self, raw: str) -> tuple[ReviewLink, Asset]:
+        link = self.db.scalar(select(ReviewLink).where(ReviewLink.token_hash == token_hash(raw), ReviewLink.is_active.is_(True)))
+        if not link or (link.expires_at and link.expires_at <= datetime.utcnow()):
+            raise NotFoundError("Review link is invalid or expired")
+        asset = self.db.get(Asset, link.asset_id)
+        if not asset:
+            raise NotFoundError("Asset not found")
+        return link, asset
+
+    def comment(self, raw: str, name: str, body: str) -> Comment:
+        _, asset = self.resolve(raw)
+        comment = Comment(asset_id=asset.id, guest_name=name, guest_role="client", body=body)
+        self.db.add(comment)
+        self.db.commit()
+        self.db.refresh(comment)
+        return comment
+
+    def decide(self, raw: str, status: AssetStatus, retention_days: int = 10) -> Asset:
+        _, asset = self.resolve(raw)
+        if status not in {AssetStatus.APPROVED, AssetStatus.CHANGES_REQUESTED}:
+            raise AppError("Guest reviewers may only approve or request changes")
+        asset.status = status
+        if status == AssetStatus.APPROVED:
+            asset.approved_at = datetime.utcnow()
+            delete_after = asset.approved_at + timedelta(days=retention_days)
+            for version in asset.versions:
+                if version.file_url.startswith(("managed://", "/static/uploads/")):
+                    version.preview_delete_after = delete_after
+        else:
+            asset.approved_at = None
+            for version in asset.versions:
+                if version.preview_deleted_at is None:
+                    version.preview_delete_after = None
+        self.db.commit()
+        return asset

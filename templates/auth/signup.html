@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Join workspace' if invitation else 'Create designer workspace' }} · AssetFlow{% endblock %}
+{% block extra_styles %}<link rel="stylesheet" href="/static/auth.css?v=2">{% endblock %}
+{% block body %}
+<main class="access-page access-page-signup">
+  <header class="access-nav">
+    <a class="access-brand" href="/" aria-label="AssetFlow homepage">
+      <span class="logo-mark">A</span>
+      <span>AssetFlow</span>
+    </a>
+    <a class="access-home" href="/" aria-label="Return to homepage">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>
+      <span>Home</span>
+    </a>
+  </header>
+
+  <section class="access-stage">
+    <div class="access-orb access-orb-one"></div>
+    <div class="access-orb access-orb-two"></div>
+    <div class="access-note access-note-left" aria-hidden="true">
+      <span class="access-note-dot blue"></span>
+      <div><b>One review link</b><small>No client account needed</small></div>
+    </div>
+    <div class="access-note access-note-right" aria-hidden="true">
+      <span class="access-note-spark">✦</span>
+      <div><b>Feedback, organized</b><small>Clear actions after every round</small></div>
+    </div>
+
+    <div class="access-card access-card-wide">
+      <div class="access-card-heading">
+        <span class="access-kicker"><i></i>{{ 'Designer invitation' if invitation else 'Built for freelance designers' }}</span>
+        <h1>{{ 'Join ' + invitation.workspace if invitation else 'Create your workspace.' }}</h1>
+        <p>{{ 'Set up your Designer account to join this feedback loop.' if invitation else 'Bring projects, client feedback, revisions, and decisions into one calm place.' }}</p>
+      </div>
+
+      {% set error = request.query_params.get('error') %}
+      {% if error %}
+      <div class="access-error" role="alert">
+        <span>!</span>
+        <p>{% if error == 'account_exists' %}An account with that email already exists. <a href="/login">Sign in instead.</a>{% elif error == 'invalid_invite' %}This invitation is invalid or has expired. Ask the designer for a new link.{% else %}Check your details. Use a valid email and a password of at least 8 characters.{% endif %}</p>
+      </div>
+      {% endif %}
+
+      <form class="access-form" method="post" action="/signup">
+        {% if invitation %}
+        <input type="hidden" name="invite_token" value="{{ invitation.token }}">
+        <input type="hidden" name="workspace_name" value="{{ invitation.workspace }}">
+        <label>
+          <span>Your name</span>
+          <input name="name" autocomplete="name" placeholder="How should we address you?" required minlength="2" autofocus>
+        </label>
+        <label>
+          <span>Invited email</span>
+          <input type="email" name="email" autocomplete="email" required readonly value="{{ invitation.email }}">
+        </label>
+        {% else %}
+        <div class="access-form-row">
+          <label>
+            <span>Your name</span>
+            <input name="name" autocomplete="name" placeholder="Alex Morgan" required minlength="2" autofocus>
+          </label>
+          <label>
+            <span>Workspace name</span>
+            <input name="workspace_name" autocomplete="organization" placeholder="North Studio" required minlength="2">
+          </label>
+        </div>
+        <label>
+          <span>Work email</span>
+          <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="you@studio.com" required>
+        </label>
+        {% endif %}
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" required minlength="8">
+        </label>
+        <button class="access-submit" type="submit">
+          <span>{{ 'Join workspace' if invitation else 'Create workspace' }}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </form>
+
+      <div class="access-switch">
+        <span>Already have an account?</span>
+        <a href="/login">Sign in</a>
+      </div>
+    </div>
+  </section>
+
+  <p class="access-footnote">Your clients can review shared designs without creating an account.</p>
+</main>
+{% endblock %}

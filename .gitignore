@@ -1,0 +1,39 @@
+# Python environments and caches
+.venv/
+.vendor/
+.tools/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Coverage and test output
+.coverage
+htmlcov/
+.cache/
+
+# Secrets and environment-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# Runtime data
+*.db
+*.db-shm
+*.db-wal
+*.log
+logs/
+var/uploads/*
+!var/uploads/.gitkeep
+static/uploads/*
+!static/uploads/.gitkeep
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

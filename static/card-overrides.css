@@ -1,0 +1,16 @@
+.creative-cover {
+  height: 286px;
+}
+
+.media-pill {
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .creative-cover {
+    height: 250px;
+  }
+}

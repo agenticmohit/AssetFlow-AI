@@ -1,0 +1,33 @@
+<div id="ai-summary" class="ai-summary">
+  <div class="flex gap-2 items-center">
+    <span class="ai-spark small">✦</span>
+    <b class="text-sm">AI feedback brief</b>
+    {% if ai_result and ai_result.available %}
+      <span class="role-pill role-ai">{{ai_result.model}}</span>
+    {% else %}
+      <span class="role-pill role-ai">On demand</span>
+    {% endif %}
+  </div>
+  {% if ai_result and ai_result.available %}
+    <p class="mt-3 text-sm leading-6 text-black/65">{{ai_result.summary}}</p>
+    {% if ai_result.actions %}
+      <ul class="ai-action-list">
+        {% for action in ai_result.actions %}<li>{{action}}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    <div class="flex gap-2 mt-3 summary-row">
+      {% for theme in ai_result.themes %}<span class="summary-chip">{{theme}}</span>{% endfor %}
+    </div>
+  {% else %}
+    <p class="mt-3 text-sm leading-6 text-black/55">
+      {{ai_result.message if ai_result else 'Summarize client feedback into themes and next actions only when you ask.'}}
+    </p>
+    <button
+      hx-post="/assets/{{asset_id}}/ai/summary"
+      hx-target="#ai-summary"
+      hx-swap="outerHTML"
+      hx-indicator="this"
+      class="ai-generate-btn"
+    >✦ Summarize feedback</button>
+  {% endif %}
+</div>

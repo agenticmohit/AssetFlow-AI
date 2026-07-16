@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f7f7fb">
+  <meta name="color-scheme" content="light dark">
+  {% block robots %}<meta name="robots" content="noindex, nofollow, noarchive">{% endblock %}
+  <meta name="description" content="{% block description %}A private design feedback workspace for freelance designers and their clients.{% endblock %}">
+  <title>{% block title %}AssetFlow AI{% endblock %}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <script src="/static/theme-init.js?v=1"></script>
+  <link rel="stylesheet" href="/static/tailwind.css?v=3.4.17">
+  <link rel="stylesheet" href="/static/app.css?v=studio-3">
+  <link rel="stylesheet" href="/static/card-overrides.css?v=beta-1">
+  <link rel="stylesheet" href="/static/beta-pages.css?v=beta-2">
+  <link rel="stylesheet" href="/static/design-system-v2.css?v=course-blue-15">
+  {% block extra_styles %}{% endblock %}
+  <link rel="stylesheet" href="/static/theme.css?v=night-12">
+  <script defer src="/static/vendor/htmx-2.0.4.min.js"></script>
+  <script defer src="/static/app.js?v=release-12"></script>
+  <script defer src="/static/vendor/alpine-3.14.9.min.js"></script>
+</head>
+<body class="bg-[#F6F5F1] text-[#20221D]">
+  {% block body %}{% endblock %}
+  <button type="button" class="global-theme-toggle" data-theme-toggle aria-label="Switch to dark mode" title="Switch colour theme"><span class="theme-toggle-icon" aria-hidden="true">◐</span></button>
+</body>
+</html>

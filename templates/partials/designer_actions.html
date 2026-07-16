@@ -1,0 +1,12 @@
+<div id="designer-action-wrap" class="designer-actions flex gap-2">
+  <button type="button" class="btn-danger" @click="remove=true" aria-label="Delete this design">⌫ Delete</button>
+  {% if asset.status == 'Completed' %}
+    <button type="button" class="btn-completed" disabled aria-label="Design completed">✓ Completed</button>
+  {% else %}
+    <form hx-post="/assets/{{asset.id}}/designer-action" hx-target="#designer-action-wrap" hx-swap="outerHTML">
+      <input type="hidden" name="action" value="done">
+      <button class="btn-dark">✓ Mark done</button>
+    </form>
+  {% endif %}
+</div>
+{% if update_status %}<span id="status-wrap" hx-swap-oob="innerHTML">{% include "partials/status.html" %}</span>{% endif %}
