@@ -24,7 +24,7 @@ def db():
 
 @pytest.fixture
 def settings(tmp_path):
-    return Settings(environment="test", debug=True, database_url="sqlite://", secret_key="test-secret", upload_dir=tmp_path / "uploads")
+    return Settings(_env_file=None, environment="test", debug=True, database_url="sqlite://", secret_key="test-secret", upload_dir=tmp_path / "uploads", openai_api_key=None)
 
 
 @pytest.fixture

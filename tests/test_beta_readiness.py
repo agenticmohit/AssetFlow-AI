@@ -85,6 +85,40 @@ def test_railway_database_url_alias_normalizes_bare_sqlite_path(monkeypatch):
     assert parsed.database == "/data/assetflow.db"
 
 
+def test_railway_deploy_trusts_public_domain_and_healthcheck_host(monkeypatch):
+    monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "assetflow.up.railway.app")
+    monkeypatch.setenv("RAILWAY_PRIVATE_DOMAIN", "assetflow.railway.internal")
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        secret_key="x" * 40,
+        database_url="sqlite:////data/assetflow.db",
+        upload_dir="/data/uploads",
+    )
+    assert settings.allowed_hosts == [
+        "assetflow.up.railway.app",
+        "assetflow.railway.internal",
+        "healthcheck.railway.app",
+    ]
+
+
+def test_railway_domains_extend_explicit_allowed_hosts(monkeypatch):
+    monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "assetflow.up.railway.app")
+    settings = Settings(
+        _env_file=None,
+        environment="production",
+        secret_key="x" * 40,
+        database_url="sqlite:////data/assetflow.db",
+        upload_dir="/data/uploads",
+        allowed_hosts=["assetflow.example.com"],
+    )
+    assert settings.allowed_hosts == [
+        "assetflow.example.com",
+        "assetflow.up.railway.app",
+        "healthcheck.railway.app",
+    ]
+
+
 def test_jwt_algorithm_is_restricted_to_audited_hs256():
     with pytest.raises(ValidationError):
         Settings(environment="test", jwt_algorithm="ES256")

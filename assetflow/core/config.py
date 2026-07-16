@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
@@ -51,6 +52,21 @@ class Settings(BaseSettings):
         if value.startswith("postgresql://"):
             return "postgresql+psycopg://" + value.removeprefix("postgresql://")
         return value
+
+    @model_validator(mode="after")
+    def trust_railway_domains(self):
+        railway_public = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+        railway_private = os.environ.get("RAILWAY_PRIVATE_DOMAIN", "").strip()
+        if not (railway_public or railway_private):
+            return self
+        hosts = [] if "allowed_hosts" not in self.model_fields_set else list(self.allowed_hosts)
+        # Railway health checks arrive with Host: healthcheck.railway.app; without it
+        # TrustedHostMiddleware returns 400 and the deployment is marked failed.
+        for host in (railway_public, railway_private, "healthcheck.railway.app"):
+            if host and host not in hosts:
+                hosts.append(host)
+        self.allowed_hosts = hosts
+        return self
 
     @model_validator(mode="after")
     def validate_production_security(self):
