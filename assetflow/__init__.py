@@ -1,2 +1,1 @@
-"""AssetFlow application package."""
-
+"""Make It Pop application package."""

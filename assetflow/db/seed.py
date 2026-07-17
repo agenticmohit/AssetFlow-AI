@@ -17,20 +17,41 @@ from assetflow.db.models import (
 
 
 def seed_demo(db: Session) -> None:
+    legacy_designer = db.scalar(
+        select(User).where(User.email == "designer@assetflow.demo")
+    )
+    if legacy_designer:
+        legacy_designer.email = "designer@makeitpop.demo"
+        legacy_designer.password_hash = hash_password("MakeItPop123!")
+        legacy_collaborator = db.scalar(
+            select(User).where(User.email == "maya@assetflow.demo")
+        )
+        if legacy_collaborator:
+            legacy_collaborator.email = "maya@makeitpop.demo"
+            legacy_collaborator.password_hash = hash_password("MakeItPop123!")
+        legacy_workspace = db.scalar(
+            select(Workspace).where(Workspace.slug == "assetflow-studio")
+        )
+        if legacy_workspace:
+            legacy_workspace.name = "Make It Pop Studio"
+            legacy_workspace.slug = "make-it-pop-studio"
+        db.commit()
+        return
+
     if db.scalar(select(User).limit(1)):
         return
 
     designer = User(
-        email="designer@assetflow.demo",
+        email="designer@makeitpop.demo",
         name="Studio Designer",
-        password_hash=hash_password("AssetFlow123!"),
+        password_hash=hash_password("MakeItPop123!"),
     )
     collaborator = User(
-        email="maya@assetflow.demo",
+        email="maya@makeitpop.demo",
         name="Maya Chen",
-        password_hash=hash_password("AssetFlow123!"),
+        password_hash=hash_password("MakeItPop123!"),
     )
-    workspace = Workspace(name="AssetFlow Studio", slug="assetflow-studio")
+    workspace = Workspace(name="Make It Pop Studio", slug="make-it-pop-studio")
     db.add_all([designer, collaborator, workspace])
     db.flush()
     db.add_all(

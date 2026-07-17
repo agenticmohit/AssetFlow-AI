@@ -10,6 +10,11 @@ def test_dashboard_and_asset_pages_render(client):
     assert landing.status_code == 200
     assert "Creative work moves faster" in landing.text
     assert "The feedback loop is" in landing.text
+    assert "Make It Pop" in landing.text
+    assert "AssetFlow" not in landing.text
+    assert "landing-menu-toggle" in landing.text
+    assert "landing-mobile-menu" in landing.text
+    assert "/static/make-it-pop-logo.png" in landing.text
     client.post(
         "/api/auth/signup",
         json={
@@ -21,13 +26,14 @@ def test_dashboard_and_asset_pages_render(client):
     )
     dashboard = client.get("/")
     assert dashboard.status_code == 200
-    assert "AssetFlow" in dashboard.text
+    assert "Make It Pop" in dashboard.text
     assert "Review queue" in dashboard.text
     assert "Open approvals\">✓" not in dashboard.text
     assert "data-theme-toggle" in dashboard.text
     assert "preview-retention-note" in dashboard.text
     assert "sidebar-note" not in dashboard.text
     assert "sidebar-project-list" in dashboard.text
+    assert "/static/make-it-pop-logo.png" in dashboard.text
 
 
 def test_dashboard_paginates_designs_and_preserves_queue_filter(client):
@@ -72,7 +78,33 @@ def test_theme_assets_are_available_on_public_and_auth_pages(client):
         page = client.get(path)
         assert "/static/theme-init.js?v=1" in page.text
         assert "/static/theme.css?v=night-13" in page.text
+        assert "/static/make-it-pop.css?v=brand-19" in page.text
         assert "data-theme-toggle" in page.text
+        assert '<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=2">' in page.text
+        assert '<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=2">' in page.text
+
+    logo = client.get("/static/make-it-pop-logo.png")
+    assert logo.status_code == 200
+    assert logo.headers["content-type"] == "image/png"
+    stacked_logo = client.get("/static/make-it-pop-logo-stacked.png")
+    assert stacked_logo.status_code == 200
+    assert stacked_logo.headers["content-type"] == "image/png"
+    dark_logo = client.get("/static/make-it-pop-logo-dark.png")
+    assert dark_logo.status_code == 200
+    assert dark_logo.headers["content-type"] == "image/png"
+    dark_stacked_logo = client.get("/static/make-it-pop-logo-stacked-dark.png")
+    assert dark_stacked_logo.status_code == 200
+    assert dark_stacked_logo.headers["content-type"] == "image/png"
+    for favicon in ("favicon-32.png", "favicon-64.png", "favicon-192.png", "apple-touch-icon.png"):
+        response = client.get(f"/static/{favicon}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+    landing_html = client.get("/").text
+    login_html = client.get("/login").text
+    assert '/static/make-it-pop-logo.png?v=horizontal-2' in landing_html
+    assert '/static/make-it-pop-logo-dark.png?v=horizontal-dark-1' in landing_html
+    assert '/static/make-it-pop-logo.png?v=horizontal-2' in login_html
+    assert '/static/make-it-pop-logo-dark.png?v=horizontal-dark-1' in login_html
 
 
 def test_request_observability_headers(client):

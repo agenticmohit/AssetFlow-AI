@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{project.name}} · AssetFlow{% endblock %}
+{% block title %}{{project.name}} · Make It Pop{% endblock %}
 {% block body %}
-<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar:true,filter:'All',deleteProject:false,deleteAsset:null,deleteAssetName:''}">
+<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar: window.innerWidth > 1000,filter:'All',deleteProject:false,deleteAsset:null,deleteAssetName:''}">
   {% include "sidebar.html" %}
   <main class="ml-[276px] min-h-screen app-canvas">
     <header class="page-header">
@@ -10,6 +10,7 @@
       <div class="project-header-actions ml-auto">
         {% if can_manage %}<button type="button" class="btn-danger" @click="deleteProject=true">⌫ Delete project</button>{% endif %}
         <a href="/assets/new?project_id={{project.id}}" class="btn-dark">＋ Add design</a>
+        {% include "partials/theme_toggle.html" %}
       </div>
     </header>
     <section class="page-section">
@@ -26,7 +27,7 @@
       </div>
       {% include "partials/asset_grid.html" %}
       {% if not assets %}
-      <div class="empty-state"><span>🖼️</span><h3>Add the first design preview</h3><p>Source files stay on your drive. AssetFlow only holds the temporary preview used for feedback.</p><a href="/assets/new?project_id={{project.id}}" class="btn-dark">Add design →</a></div>
+      <div class="empty-state"><span>🖼️</span><h3>Add the first design preview</h3><p>Source files stay on your drive. Make It Pop only holds the temporary preview used for feedback.</p><a href="/assets/new?project_id={{project.id}}" class="btn-dark">Add design →</a></div>
       {% endif %}
     </section>
   </main>

@@ -25,7 +25,7 @@ class WorkspaceService:
     def invite(self, workspace_id: int, actor_id: int, email: str, role: Role) -> tuple[Invite, str]:
         self.require_member(workspace_id, actor_id, {Role.OWNER, Role.CREATIVE_LEAD})
         if role != Role.DESIGNER:
-            raise PermissionDeniedError("AssetFlow supports designer invitations only")
+            raise PermissionDeniedError("Make It Pop supports designer invitations only")
         raw, hashed = new_token()
         invite = Invite(workspace_id=workspace_id, email=email.lower(), role=role, token_hash=hashed, expires_at=expires_at(72))
         self.db.add(invite)

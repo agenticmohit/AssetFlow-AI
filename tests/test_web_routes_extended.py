@@ -56,6 +56,10 @@ def test_project_and_asset_forms_are_operational(client, db, settings):
     assert "Editorial tile" in asset_page.text
     assert "Share for review" in asset_page.text
     assert "Send this design for review" in asset_page.text
+    assert "Open large preview of Editorial tile" in asset_page.text
+    assert "Click the image or outside to close" in asset_page.text
+    assert "preview-caption" not in asset_page.text
+    assert "Your workflow record stays here" not in asset_page.text
     assert "Share without signup" not in asset_page.text
     assert "Editorial tile" in client.get("/assets?q=Editorial").text
     assert "Editorial tile" in client.get("/assets?status=in_review").text
@@ -69,7 +73,7 @@ def test_project_and_asset_forms_are_operational(client, db, settings):
         f"/assets/{asset_id}/comments",
         data={"text": "I will test it 🎨", "parent_id": str(parent_id)},
     )
-    assert "Reply in thread" in reply.text
+    assert "Reply in thread" not in reply.text
 
     revision = client.post(
         f"/assets/{asset_id}/versions",
@@ -316,6 +320,15 @@ def test_change_request_forms_create_feedback_and_status(client, db):
     review_page = client.get(f"/review/t/{token}")
     assert "Designer" in review_page.text
     assert "Studio owner" not in review_page.text
+    assert "Open large preview" in review_page.text
+    assert "image-lightbox" in review_page.text
+    assert "/static/make-it-pop-logo.png?v=horizontal-2" in review_page.text
+    assert "/static/make-it-pop-logo-dark.png?v=horizontal-dark-1" in review_page.text
+    assert "/static/make-it-pop-logo-stacked.png?v=stacked-2" in review_page.text
+    assert "/static/make-it-pop-logo-stacked-dark.png?v=stacked-dark-1" in review_page.text
+    assert "make-it-pop-mark.svg" not in review_page.text
+    assert "A focused review space" not in review_page.text
+    assert "Keep the original design file" not in review_page.text
     public = client.post(
         f"/review/t/{token}/change-request",
         data={"name": "Client Reviewer", "text": "Use the warmer brand colour"},
@@ -333,5 +346,6 @@ def test_demo_seed_is_idempotent(db):
     assert db.scalar(select(func.count(User.id))) == 2
     assert db.scalar(select(func.count(Project.id))) == 6
     assert db.scalar(select(func.count(Asset.id))) == 6
+    assert db.scalar(select(User.email).where(User.name == "Studio Designer")) == "designer@makeitpop.demo"
     seed_demo(db)
     assert db.scalar(select(func.count(User.id))) == 2

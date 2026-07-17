@@ -1,1 +1,26 @@
-{% extends "base.html" %}{% block title %}{{page_title}} · AssetFlow{% endblock %}{% block body %}<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar:true,filter:'All'}">{% include "sidebar.html" %}<main class="ml-[276px] min-h-screen app-canvas"><header class="page-header"><button class="menu-toggle" @click="sidebar=!sidebar" aria-label="Toggle navigation">☰</button><div><span>{{page_kicker}}</span><b>{{page_title}}</b></div><form action="/assets" class="page-search"><span>⌕</span><input name="q" value="{{q}}" placeholder="Search designs or projects"><button>Search</button></form><a href="/assets/new" class="btn-dark ml-auto">＋ New asset</a></header><section class="page-section"><div class="page-intro"><p class="eyebrow">{{page_kicker}}</p><h1 class="display">{{page_title}}<span>.</span></h1><p>{% if active_nav == 'approvals' %}See what needs a decision, what needs another pass, and what has crossed the finish line.{% else %}Every live design preview across your creative workspace.{% endif %}</p></div>{% include "partials/asset_grid.html" %}{% if not assets %}<div class="empty-state"><span>🔎</span><h3>Nothing here yet</h3><p>Try another filter or upload a design preview.</p><a href="/assets/new" class="btn-dark">Upload design</a></div>{% endif %}</section></main></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{page_title}} · Make It Pop{% endblock %}
+{% block body %}
+<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar: window.innerWidth > 1000,filter:'All'}">
+  {% include "sidebar.html" %}
+  <main class="ml-[276px] min-h-screen app-canvas">
+    <header class="page-header">
+      <button class="menu-toggle" @click="sidebar=!sidebar" aria-label="Toggle navigation">☰</button>
+      <div><span>{{page_kicker}}</span><b>{{page_title}}</b></div>
+      <form action="/assets" class="page-search"><span>⌕</span><input name="q" value="{{q}}" placeholder="Search designs or projects"><button>Search</button></form>
+      <div class="page-header-actions"><a href="/assets/new" class="btn-dark">＋ <span class="header-action-label">New asset</span></a>{% include "partials/theme_toggle.html" %}</div>
+    </header>
+    <section class="page-section">
+      <div class="page-intro">
+        <p class="eyebrow">{{page_kicker}}</p>
+        <h1 class="display">{{page_title}}<span>.</span></h1>
+        <p>{% if active_nav == 'approvals' %}See what needs a decision, what needs another pass, and what has crossed the finish line.{% else %}Every live design preview across your creative workspace.{% endif %}</p>
+      </div>
+      {% include "partials/asset_grid.html" %}
+      {% if not assets %}
+      <div class="empty-state"><span>🔎</span><h3>Nothing here yet</h3><p>Try another filter or upload a design preview.</p><a href="/assets/new" class="btn-dark">Upload design</a></div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}

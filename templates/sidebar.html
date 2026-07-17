@@ -1,5 +1,5 @@
 <aside class="fixed inset-y-3 left-3 w-64 p-4 flex flex-col z-30 sidebar-shell" x-cloak x-show="sidebar" x-transition.opacity.duration.180ms>
-  <div class="sidebar-brand-row"><a href="/" class="flex items-center gap-3 px-2 py-2"><span class="logo-mark">A</span><span class="font-semibold tracking-tight text-lg">AssetFlow</span><span class="beta-tag">BETA</span></a><button type="button" class="sidebar-close" @click="sidebar=false" aria-label="Close navigation">×</button></div>
+  <div class="sidebar-brand-row"><a href="/" class="sidebar-brand-link flex items-center gap-2 px-1 py-1" aria-label="Make It Pop home"><span class="brand-lockup sidebar-brand-lockup" aria-hidden="true"><img class="theme-logo theme-logo-light" src="/static/make-it-pop-logo.png?v=horizontal-2" alt=""><img class="theme-logo theme-logo-dark" src="/static/make-it-pop-logo-dark.png?v=horizontal-dark-1" alt=""></span><span class="beta-tag">BETA</span></a><button type="button" class="sidebar-close" @click="sidebar=false" aria-label="Close navigation">×</button></div>
   <div class="mt-8 nav-label">Workspace</div>
   <nav class="mt-3 space-y-1 text-sm">
     <a href="/" class="nav-item {{'active' if active_nav == 'overview' else ''}}"><span>⌂</span> Overview</a>

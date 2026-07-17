@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Upload design · AssetFlow{% endblock %}
+{% block title %}Upload design · Make It Pop{% endblock %}
 {% block body %}
-<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar:true,fileName:'',newProject:false}">
+<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar: window.innerWidth > 1000,fileName:'',newProject:false}">
   {% include "sidebar.html" %}
   <main class="ml-[276px] min-h-screen app-canvas">
     <header class="page-header">
       <button class="menu-toggle" @click="sidebar=!sidebar" aria-label="Toggle navigation">☰</button>
       <div><span>Creative queue</span><b>Upload design</b></div>
-      <a href="/assets" class="header-back ml-auto">← Back to assets</a>
+      <div class="page-header-actions ml-auto"><a href="/assets" class="header-back">← <span class="header-back-label">Back to assets</span></a>{% include "partials/theme_toggle.html" %}</div>
     </header>
     <section class="form-layout">
       <div class="form-story lilac">
         <p class="eyebrow">Focused creative review</p>
         <h1 class="display">Upload. Discuss. Decide<span>.</span></h1>
-        <p>Keep editable source files and final exports in your existing drive. AssetFlow holds only the lightweight preview needed for the active conversation.</p>
+        <p>Keep editable source files and final exports in your existing drive. Make It Pop holds only the lightweight preview needed for the active conversation.</p>
         <div class="retention-note"><b>Lightweight</b><span>Previews clear automatically after a quiet grace period</span></div>
       </div>
       <form action="/assets" method="post" enctype="multipart/form-data" class="form-card">

@@ -153,7 +153,7 @@ def test_team_invitation_joins_existing_workspace(client, db):
 
 
 def test_cleanup_skips_non_managed_urls(db, tmp_path):
-    # Externally hosted/source links are references, not files owned by AssetFlow.
+    # Externally hosted/source links are references, not files owned by Make It Pop.
     from assetflow.core.security import hash_password
     from assetflow.db.models import Project, User, Workspace
 

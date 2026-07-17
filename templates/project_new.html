@@ -1,1 +1,29 @@
-{% extends "base.html" %}{% block title %}New project · AssetFlow{% endblock %}{% block body %}<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar:true}">{% include "sidebar.html" %}<main class="ml-[276px] min-h-screen app-canvas"><header class="page-header"><button class="menu-toggle" @click="sidebar=!sidebar" aria-label="Toggle navigation">☰</button><div><span>Projects</span><b>Create project</b></div><a href="/projects" class="header-back ml-auto">← Back to projects</a></header><section class="form-layout"><div class="form-story coral"><p class="eyebrow">A clean starting point</p><h1 class="display">Give the work a home<span>.</span></h1><p>Projects group designs and feedback. They do not replace your local folders, Google Drive, Dropbox or final-delivery workflow.</p><div class="story-icons"><span>📁</span><span>💬</span><span>✨</span></div></div><form action="/projects" method="post" class="form-card"><p class="eyebrow">Project details</p><h2>Start a feedback workspace</h2><label>Project name<input class="field" name="name" required minlength="2" maxlength="160" placeholder="Monsoon campaign"></label><label>Client or team <small>Optional</small><input class="field" name="client_name" maxlength="160" placeholder="Norr Studio"></label><label>What is the team making?<textarea class="field h-28" name="description" maxlength="5000" placeholder="Social launch assets for the seasonal collection…"></textarea></label><button class="btn-dark w-full justify-center">Create project →</button></form></section></main></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}New project · Make It Pop{% endblock %}
+{% block body %}
+<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar: window.innerWidth > 1000}">
+  {% include "sidebar.html" %}
+  <main class="ml-[276px] min-h-screen app-canvas">
+    <header class="page-header">
+      <button class="menu-toggle" @click="sidebar=!sidebar" aria-label="Toggle navigation">☰</button>
+      <div><span>Projects</span><b>Create project</b></div>
+      <div class="page-header-actions ml-auto"><a href="/projects" class="header-back">← <span class="header-back-label">Back to projects</span></a>{% include "partials/theme_toggle.html" %}</div>
+    </header>
+    <section class="form-layout">
+      <div class="form-story coral">
+        <p class="eyebrow">A clean starting point</p>
+        <h1 class="display">Give the work a home<span>.</span></h1>
+        <p>Projects group designs and feedback. They do not replace your local folders, Google Drive, Dropbox or final-delivery workflow.</p>
+        <div class="story-icons"><span>📁</span><span>💬</span><span>✨</span></div>
+      </div>
+      <form action="/projects" method="post" class="form-card">
+        <p class="eyebrow">Project details</p><h2>Start a feedback workspace</h2>
+        <label>Project name<input class="field" name="name" required minlength="2" maxlength="160" placeholder="Monsoon campaign"></label>
+        <label>Client or team <small>Optional</small><input class="field" name="client_name" maxlength="160" placeholder="Norr Studio"></label>
+        <label>What is the team making?<textarea class="field h-28" name="description" maxlength="5000" placeholder="Social launch assets for the seasonal collection…"></textarea></label>
+        <button class="btn-dark w-full justify-center">Create project →</button>
+      </form>
+    </section>
+  </main>
+</div>
+{% endblock %}

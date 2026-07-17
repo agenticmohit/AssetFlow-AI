@@ -1,16 +1,16 @@
-# AssetFlow
+# Make It Pop
 
 ### Clear feedback. Faster revisions. Confident approvals.
 
-AssetFlow is a focused project and feedback workspace for freelance designers. It brings design previews, client conversations, revision tasks, versions, and approvals into one calm place—without asking clients to learn another project-management tool.
+Make It Pop is a focused project and feedback workspace for freelance designers. It brings design previews, client conversations, revision tasks, versions, and approvals into one calm place—without asking clients to learn another project-management tool.
 
-Designers keep their original working files in the tools and drives they already use. AssetFlow holds the active review conversation around lightweight previews, so creative work can move forward without scattered messages or ambiguous decisions.
+Designers keep their original working files in the tools and drives they already use. Make It Pop holds the active review conversation around lightweight previews, so creative work can move forward without scattered messages or ambiguous decisions.
 
-## Why AssetFlow
+## Why Make It Pop
 
 Creative feedback often arrives through a mix of chat messages, email threads, calls, screenshots, and voice notes. Important changes get buried, reviewers lose track of the latest version, and “approved” can still feel unclear.
 
-AssetFlow creates a simple feedback loop:
+Make It Pop creates a simple feedback loop:
 
 1. Upload a design preview to a project.
 2. Share a private review link with the client.
@@ -36,7 +36,7 @@ AssetFlow creates a simple feedback loop:
 
 The designer owns the workspace and manages projects, designs, revisions, and delivery progress. Clients receive a focused review surface where they can view the current design, comment, reply, request changes, or approve.
 
-There is no heavy client onboarding and no expectation that AssetFlow replaces the designer’s local folders or cloud drive. Original files stay with the designer; AssetFlow keeps the review process clear while the work is active.
+There is no heavy client onboarding and no expectation that Make It Pop replaces the designer’s local folders or cloud drive. Original files stay with the designer; Make It Pop keeps the review process clear while the work is active.
 
 ## AI with a purpose
 
@@ -44,7 +44,7 @@ AI features are optional and run only when the designer requests them. They summ
 
 ## Beta
 
-AssetFlow is currently an early beta focused on the complete freelance design-review workflow. The product is being refined around clarity, speed, client simplicity, and a visually expressive experience for modern creative teams.
+Make It Pop is currently an early beta focused on the complete freelance design-review workflow. The product is being refined around clarity, speed, client simplicity, and a visually expressive experience for modern creative teams.
 
 ## Run locally
 
@@ -64,8 +64,8 @@ Open `http://127.0.0.1:8000`.
 The local demo account is:
 
 ```text
-Email: designer@assetflow.demo
-Password: AssetFlow123!
+Email: designer@makeitpop.demo
+Password: MakeItPop123!
 ```
 
 An OpenAI API key is optional for local development. Add it to `.env` to enable live AI feedback summaries and task suggestions; the rest of the product works without it.
@@ -100,4 +100,4 @@ Optional environment variables to override the defaults:
 
 ## Feedback
 
-AssetFlow is being built for designers who want a sharper, friendlier alternative to collecting creative feedback in scattered messages. Product feedback, workflow ideas, and thoughtful bug reports are welcome through GitHub Issues.
+Make It Pop is being built for designers who want a sharper, friendlier alternative to collecting creative feedback in scattered messages. Product feedback, workflow ideas, and thoughtful bug reports are welcome through GitHub Issues.

@@ -1,12 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Join workspace' if invitation else 'Create designer workspace' }} · AssetFlow{% endblock %}
+{% block title %}{{ 'Join workspace' if invitation else 'Create designer workspace' }} · Make It Pop{% endblock %}
 {% block extra_styles %}<link rel="stylesheet" href="/static/auth.css?v=3">{% endblock %}
 {% block body %}
 <main class="access-page access-page-signup">
   <header class="access-nav">
-    <a class="access-brand" href="/" aria-label="AssetFlow homepage">
-      <span class="logo-mark">A</span>
-      <span>AssetFlow</span>
+    <a class="access-brand" href="/" aria-label="Make It Pop homepage">
+      <span class="brand-lockup" aria-hidden="true"><img class="theme-logo theme-logo-light" src="/static/make-it-pop-logo.png?v=horizontal-2" alt=""><img class="theme-logo theme-logo-dark" src="/static/make-it-pop-logo-dark.png?v=horizontal-dark-1" alt=""></span>
     </a>
     <a class="access-home" href="/" aria-label="Return to homepage">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>

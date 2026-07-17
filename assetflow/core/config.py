@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         env_prefix="ASSETFLOW_", env_file=".env", extra="ignore", populate_by_name=True
     )
 
-    app_name: str = "AssetFlow AI"
+    app_name: str = "Make It Pop"
     environment: str = "development"
     debug: bool = False
     database_url: str = Field(
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_security(self):
         if self.jwt_algorithm != "HS256":
-            raise ValueError("AssetFlow supports only HS256 JWT signing")
+            raise ValueError("Make It Pop supports only HS256 JWT signing")
         if self.environment == "production":
             if (
                 self.secret_key in {"development-only-change-me", "replace-me"}

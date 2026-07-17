@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Review {{asset.title}} · AssetFlow{% endblock %}
+{% block title %}Review {{asset.title}} · Make It Pop{% endblock %}
 {% block body %}
-<div class="public-review" x-data="{changes:false,replyTo:'',replyName:'',commentFilter:'all'}">
+<div class="public-review" x-data="{changes:false,previewOpen:false,replyTo:'',replyName:'',commentFilter:'all'}" x-effect="document.documentElement.classList.toggle('preview-open', previewOpen)">
   <header class="public-header">
-    <span class="logo-mark">A</span><span class="font-semibold ml-3">AssetFlow</span>
+    <a href="/" class="public-brand" aria-label="Make It Pop home"><span class="public-brand-assets" aria-hidden="true"><picture class="brand-lockup public-brand-lockup theme-logo theme-logo-light"><source media="(max-width: 560px)" srcset="/static/make-it-pop-logo-stacked.png?v=stacked-2"><img src="/static/make-it-pop-logo.png?v=horizontal-2" alt=""></picture><picture class="brand-lockup public-brand-lockup theme-logo theme-logo-dark"><source media="(max-width: 560px)" srcset="/static/make-it-pop-logo-stacked-dark.png?v=stacked-dark-1"><img src="/static/make-it-pop-logo-dark.png?v=horizontal-dark-1" alt=""></picture></span></a>
     <span class="review-badge">Client review</span>
     <div class="ml-auto text-xs public-security-note">No account needed · Secure design link</div><button type="button" class="public-theme-toggle" data-theme-toggle aria-label="Switch to dark mode" title="Switch colour theme"><span class="theme-toggle-icon" aria-hidden="true">◐</span></button>
   </header>
@@ -12,7 +12,7 @@
       <div class="min-w-0">
         <p class="eyebrow">{{asset.client}} · {{asset.project}}</p>
         <h1 class="display">{{asset.title}}</h1>
-        <p class="text-sm text-black/40 mt-1">Version {{asset.version}} · Ready for your feedback</p>
+        <div class="public-review-meta"><p class="text-sm text-black/40">Version {{asset.version}} · Ready for your feedback</p><div id="review-status">{% include "partials/status.html" %}</div></div>
       </div>
       <div class="ml-auto flex gap-2">
         <button @click="changes=true" class="btn-light">↻ Request changes</button>
@@ -21,13 +21,8 @@
         </form>
       </div>
     </div>
-    <div class="public-lifecycle">
-      <span>🔒</span>
-      <p><b>A focused review space.</b> Keep the original design file saved in your own drive; this link keeps decisions and feedback together.</p>
-      <div id="review-status">{% include "partials/status.html" %}</div>
-    </div>
-    <div class="public-grid grid grid-cols-[1fr_380px] gap-6 mt-4">
-      <div class="preview-stage public-design-stage"><img src="{{asset.image}}" alt="{{asset.title}}"></div>
+    <div class="public-grid grid grid-cols-[1fr_380px] gap-6 mt-5">
+      <div class="preview-stage public-design-stage"><button type="button" class="review-preview-trigger" @click="previewOpen=true" aria-label="Open large preview of {{asset.title}}"><img src="{{asset.image}}" alt="{{asset.title}}"><span class="preview-zoom-affordance" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4.1 4.1M10.8 8.1v5.4M8.1 10.8h5.4"></path></svg><b>Preview</b></span></button></div>
       <div class="panel p-5 flex flex-col min-w-0 public-feedback-panel">
         <div class="flex items-start gap-3">
           <div><h3 class="font-semibold">Feedback thread</h3><p class="text-xs text-black/40 mt-1">Your comments go directly to the designer.</p></div>
@@ -53,6 +48,7 @@
       </div>
     </div>
   </main>
+  <div x-cloak x-show="previewOpen" x-transition.opacity class="image-lightbox" role="dialog" aria-modal="true" aria-label="Large preview of {{asset.title}}" @click.self="previewOpen=false" @keydown.escape.window="previewOpen=false"><button type="button" class="image-lightbox-close" @click="previewOpen=false" aria-label="Close large preview"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button><button type="button" class="image-lightbox-image" @click="previewOpen=false" aria-label="Close large preview"><img src="{{asset.image}}" alt="{{asset.title}} enlarged"></button><p>Click the image or outside to close</p></div>
   <div x-show="changes" x-transition class="modal">
     <div @click.outside="changes=false" class="modal-card">
       <button @click="changes=false" class="modal-close">×</button>
