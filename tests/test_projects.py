@@ -1,5 +1,7 @@
+from sqlalchemy import func, select
+
 from assetflow.core.security import hash_password
-from assetflow.db.models import Role, User, WorkspaceMember
+from assetflow.db.models import Comment, Role, User, WorkspaceMember
 
 
 def test_owner_creates_project_and_asset(client, owner):
@@ -22,6 +24,31 @@ def test_comment_and_status_workflow(client, owner):
     updated = client.patch(f"/api/assets/{asset_id}/status", headers=owner["headers"], json={"status": "approved"})
     assert updated.status_code == 403
     assert updated.json()["error"]["message"] == "Only clients can make review decisions"
+
+
+def test_comment_retry_with_same_idempotency_key_is_created_once(client, db, owner):
+    project_id = client.post(
+        "/api/workspaces/1/projects", headers=owner["headers"], json={"name": "Retry safe"}
+    ).json()["id"]
+    asset_id = client.post(
+        f"/api/projects/{project_id}/assets",
+        headers=owner["headers"],
+        json={"title": "Poster"},
+    ).json()["id"]
+    headers = {**owner["headers"], "Idempotency-Key": "comment_retry_001"}
+
+    first = client.post(
+        f"/api/assets/{asset_id}/comments", headers=headers, json={"body": "Keep this once"}
+    )
+    retry = client.post(
+        f"/api/assets/{asset_id}/comments", headers=headers, json={"body": "Keep this once"}
+    )
+
+    assert first.status_code == retry.status_code == 201
+    assert first.json()["id"] == retry.json()["id"]
+    assert first.headers["x-idempotent-replay"] == "false"
+    assert retry.headers["x-idempotent-replay"] == "true"
+    assert db.scalar(select(func.count(Comment.id)).where(Comment.asset_id == asset_id)) == 1
 
 
 def test_designer_cannot_create_project_or_approve(client, db, owner):

@@ -13,7 +13,154 @@ document.addEventListener("alpine:initialized", () => {
   syncFeedbackThreads();
   bindReviewLinkCopy();
   bindThemeToggle();
+  bindResilientCommentForms();
 });
+
+const PENDING_COMMENT_STORAGE_KEY = "make-it-pop-pending-comments-v1";
+const PENDING_COMMENT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const MAX_COMMENT_RETRIES = 3;
+const commentRetryTimers = new Map();
+
+function newCommentRequestId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+}
+
+function readPendingComments() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(PENDING_COMMENT_STORAGE_KEY) || "{}");
+    const fresh = {};
+    Object.entries(stored).forEach(([endpoint, item]) => {
+      if (item?.savedAt && Date.now() - item.savedAt < PENDING_COMMENT_MAX_AGE) fresh[endpoint] = item;
+    });
+    return fresh;
+  } catch {
+    return {};
+  }
+}
+
+function writePendingComments(items) {
+  try {
+    localStorage.setItem(PENDING_COMMENT_STORAGE_KEY, JSON.stringify(items));
+  } catch {}
+}
+
+function commentEndpoint(form) {
+  return form?.getAttribute("hx-post") || "";
+}
+
+function commentFormFromElement(element) {
+  return element?.matches?.("form[data-resilient-comment]")
+    ? element
+    : element?.closest?.("form[data-resilient-comment]");
+}
+
+function setCommentDeliveryStatus(form, message, state = "") {
+  const status = form?.querySelector("[data-comment-delivery-status]");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+function ensureCommentRequestId(form) {
+  const input = form.querySelector('input[name="client_request_id"]');
+  if (input && !input.value) input.value = newCommentRequestId();
+  return input?.value || "";
+}
+
+function serializeCommentForm(form) {
+  return Object.fromEntries(new FormData(form).entries());
+}
+
+function persistCommentForm(form) {
+  const endpoint = commentEndpoint(form);
+  if (!endpoint) return;
+  ensureCommentRequestId(form);
+  const pending = readPendingComments();
+  pending[endpoint] = {
+    data: serializeCommentForm(form),
+    attempts: pending[endpoint]?.attempts || 0,
+    savedAt: Date.now(),
+  };
+  writePendingComments(pending);
+  form.classList.add("is-comment-pending");
+}
+
+function clearPendingComment(form) {
+  const endpoint = commentEndpoint(form);
+  const pending = readPendingComments();
+  delete pending[endpoint];
+  writePendingComments(pending);
+  window.clearTimeout(commentRetryTimers.get(endpoint));
+  commentRetryTimers.delete(endpoint);
+  form.classList.remove("is-comment-pending");
+}
+
+function restorePendingComment(form, item) {
+  Object.entries(item.data || {}).forEach(([name, value]) => {
+    const field = form.elements.namedItem(name);
+    if (field && typeof value === "string") field.value = value;
+  });
+  form.classList.add("is-comment-pending");
+  setCommentDeliveryStatus(
+    form,
+    navigator.onLine ? "Saved draft — retrying…" : "Saved on this device — will send when you’re back online.",
+    "pending",
+  );
+}
+
+function resetDeliveredCommentForm(form) {
+  const nameField = form.elements.namedItem("name");
+  const rememberedName = nameField?.value || "";
+  form.reset();
+  if (nameField) nameField.value = rememberedName;
+  const requestId = form.elements.namedItem("client_request_id");
+  if (requestId) requestId.value = newCommentRequestId();
+  form.dispatchEvent(new CustomEvent("comment-delivered", { bubbles: true }));
+  setCommentDeliveryStatus(form, "Sent", "sent");
+  window.setTimeout(() => {
+    if (form.querySelector("[data-comment-delivery-status]")?.dataset.state === "sent") {
+      setCommentDeliveryStatus(form, "");
+    }
+  }, 2200);
+}
+
+function scheduleCommentRetry(form, immediate = false) {
+  if (!navigator.onLine) return;
+  const endpoint = commentEndpoint(form);
+  const item = readPendingComments()[endpoint];
+  if (!item || item.attempts >= MAX_COMMENT_RETRIES || commentRetryTimers.has(endpoint)) {
+    if (item?.attempts >= MAX_COMMENT_RETRIES) {
+      setCommentDeliveryStatus(form, "Still saved on this device. Tap send to retry.", "error");
+    }
+    return;
+  }
+  const delays = [1500, 4000, 10000];
+  const timer = window.setTimeout(() => {
+    commentRetryTimers.delete(endpoint);
+    const pending = readPendingComments();
+    if (!pending[endpoint] || !navigator.onLine) return;
+    pending[endpoint].attempts += 1;
+    pending[endpoint].savedAt = Date.now();
+    writePendingComments(pending);
+    setCommentDeliveryStatus(form, "Retrying saved feedback…", "pending");
+    form.requestSubmit();
+  }, immediate ? 100 : delays[item.attempts] || delays.at(-1));
+  commentRetryTimers.set(endpoint, timer);
+}
+
+function bindResilientCommentForms(root = document) {
+  root.querySelectorAll("form[data-resilient-comment]").forEach((form) => {
+    if (form.dataset.resilientBound === "true") return;
+    form.dataset.resilientBound = "true";
+    ensureCommentRequestId(form);
+    const pending = readPendingComments()[commentEndpoint(form)];
+    if (pending) {
+      restorePendingComment(form, pending);
+      scheduleCommentRetry(form, true);
+    }
+  });
+}
 
 function activeTheme() {
   return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
@@ -62,6 +209,40 @@ function placeWorkspaceThemeToggle() {
 document.addEventListener("DOMContentLoaded", () => {
   placeWorkspaceThemeToggle();
   bindThemeToggle();
+  bindResilientCommentForms();
+});
+
+document.addEventListener(
+  "submit",
+  (event) => {
+    const form = commentFormFromElement(event.target);
+    if (!form) return;
+    persistCommentForm(form);
+    if (event.isTrusted) {
+      const pending = readPendingComments();
+      const endpoint = commentEndpoint(form);
+      if (pending[endpoint]) pending[endpoint].attempts = 0;
+      writePendingComments(pending);
+    }
+    if (!navigator.onLine) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setCommentDeliveryStatus(form, "Saved on this device — will send when you’re back online.", "pending");
+    }
+  },
+  true,
+);
+
+window.addEventListener("online", () => {
+  const pending = readPendingComments();
+  Object.values(pending).forEach((item) => { item.attempts = 0; });
+  writePendingComments(pending);
+  document.querySelectorAll("form[data-resilient-comment]").forEach((form) => {
+    const endpoint = commentEndpoint(form);
+    if (!pending[endpoint]) return;
+    restorePendingComment(form, pending[endpoint]);
+    scheduleCommentRetry(form, true);
+  });
 });
 
 function syncFeedbackThreads() {
@@ -131,6 +312,11 @@ function bindReviewLinkCopy(root = document) {
 
 document.addEventListener("htmx:beforeRequest", (event) => {
   const trigger = event.detail.elt;
+  const commentForm = commentFormFromElement(trigger);
+  if (commentForm) {
+    persistCommentForm(commentForm);
+    setCommentDeliveryStatus(commentForm, "Sending…", "pending");
+  }
   trigger.classList.add("is-loading");
   trigger.setAttribute("aria-busy", "true");
 });
@@ -139,9 +325,44 @@ document.addEventListener("htmx:afterRequest", (event) => {
   const trigger = event.detail.elt;
   trigger.classList.remove("is-loading");
   trigger.removeAttribute("aria-busy");
+  const commentForm = commentFormFromElement(trigger);
+  if (commentForm && event.detail.successful) {
+    clearPendingComment(commentForm);
+    resetDeliveredCommentForm(commentForm);
+    return;
+  }
+  if (commentForm) {
+    const status = event.detail.xhr?.status || 0;
+    if (status === 0 || status >= 500) {
+      setCommentDeliveryStatus(commentForm, "Saved on this device — retrying shortly.", "pending");
+      scheduleCommentRetry(commentForm);
+    } else {
+      const pending = readPendingComments();
+      const endpoint = commentEndpoint(commentForm);
+      if (pending[endpoint]) pending[endpoint].attempts = MAX_COMMENT_RETRIES;
+      writePendingComments(pending);
+      setCommentDeliveryStatus(commentForm, "Not sent. Your text is saved so you can correct it and retry.", "error");
+    }
+    return;
+  }
   if (!event.detail.successful) {
     assetFlowToast("That action could not be completed. Please try again.");
   }
+});
+
+document.addEventListener("htmx:sendError", (event) => {
+  const commentForm = commentFormFromElement(event.detail.elt);
+  if (!commentForm) return;
+  persistCommentForm(commentForm);
+  setCommentDeliveryStatus(commentForm, "Saved on this device — will retry when the connection returns.", "pending");
+  scheduleCommentRetry(commentForm);
+});
+
+document.addEventListener("htmx:beforeSwap", (event) => {
+  if (event.detail.target?.id !== "comments" || !event.detail.serverResponse) return;
+  const parsed = new DOMParser().parseFromString(event.detail.serverResponse, "text/html");
+  const incoming = parsed.querySelector(".comment[id]");
+  if (incoming?.id && document.getElementById(incoming.id)) event.detail.shouldSwap = false;
 });
 
 document.addEventListener("htmx:afterSwap", (event) => {
@@ -151,4 +372,5 @@ document.addEventListener("htmx:afterSwap", (event) => {
   }
   syncFeedbackThreads();
   bindReviewLinkCopy(event.detail.target || document);
+  bindResilientCommentForms(event.detail.target || document);
 });

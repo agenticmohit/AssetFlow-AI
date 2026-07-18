@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Header, Response, status
 
 from assetflow.api.dependencies import CurrentUser, get_project_service, get_workspace_service
 from assetflow.schemas.projects import (
@@ -38,8 +38,17 @@ def create_asset(project_id: int, data: AssetCreate, user: CurrentUser, service:
 
 
 @router.post("/assets/{asset_id}/comments", status_code=status.HTTP_201_CREATED)
-def create_comment(asset_id: int, data: CommentCreate, user: CurrentUser, service: ProjectService = Depends(get_project_service)):
-    item = service.add_comment(asset_id, user, data)
+def create_comment(
+    asset_id: int,
+    data: CommentCreate,
+    response: Response,
+    user: CurrentUser,
+    service: ProjectService = Depends(get_project_service),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+):
+    data = data.model_copy(update={"client_request_id": idempotency_key or data.client_request_id})
+    item, created = service.add_comment(asset_id, user, data)
+    response.headers["X-Idempotent-Replay"] = "false" if created else "true"
     return {"id": item.id, "body": item.body, "author_id": item.author_id}
 
 

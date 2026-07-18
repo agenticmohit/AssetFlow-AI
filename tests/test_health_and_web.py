@@ -35,6 +35,14 @@ def test_dashboard_and_asset_pages_render(client):
     assert "sidebar-project-list" in dashboard.text
     assert "/static/make-it-pop-logo.png" in dashboard.text
 
+    landing_css = client.get("/static/landing.css").text
+    assert "grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr)" in landing_css
+    assert ".product-feedback{display:none}" not in landing_css
+    app_js = client.get("/static/app.js").text
+    assert "make-it-pop-pending-comments-v1" in app_js
+    assert 'window.addEventListener("online"' in app_js
+    assert 'document.addEventListener("htmx:beforeSwap"' in app_js
+
 
 def test_dashboard_paginates_designs_and_preserves_queue_filter(client):
     signup = client.post(
@@ -78,7 +86,7 @@ def test_theme_assets_are_available_on_public_and_auth_pages(client):
         page = client.get(path)
         assert "/static/theme-init.js?v=1" in page.text
         assert "/static/theme.css?v=night-13" in page.text
-        assert "/static/make-it-pop.css?v=brand-19" in page.text
+        assert "/static/make-it-pop.css?v=brand-20" in page.text
         assert "data-theme-toggle" in page.text
         assert '<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=2">' in page.text
         assert '<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=2">' in page.text
@@ -195,6 +203,9 @@ def test_persisted_asset_page_and_comment(client):
     page = client.get(f"/assets/{asset.json()['id']}")
     assert page.status_code == 200
     assert "UI poster" in page.text
+    assert "data-resilient-comment" in page.text
+    assert 'name="client_request_id"' in page.text
+    assert "/static/app.js?v=release-13" in page.text
     comment = client.post(
         f"/assets/{asset.json()['id']}/comments", data={"text": "Polish the hierarchy"}
     )

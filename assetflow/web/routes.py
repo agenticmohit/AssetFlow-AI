@@ -29,6 +29,7 @@ from assetflow.db.models import (
 from assetflow.db.session import get_db
 from assetflow.schemas.auth import SignupRequest
 from assetflow.services.auth import AuthService
+from assetflow.services.comments import CommentService
 from assetflow.services.creative_ai import CreativeAIService
 from assetflow.services.reviews import ReviewService
 from assetflow.services.workspaces import WorkspaceService
@@ -163,6 +164,7 @@ def comment_card(comment: Comment, db: Session):
         "role_key": key,
         "text": comment.body,
         "parent_id": comment.parent_id,
+        "client_request_id": comment.client_request_id,
         "time": comment.created_at.strftime("%d %b · %I:%M %p") if comment.created_at else "Now",
     }
 
@@ -607,32 +609,39 @@ def asset_detail(asset_id: int, request: Request, db: Session = Depends(get_db))
     comments = [comment_card(comment, db) for comment in asset.comments]
     tasks = [{"id": task.id, "text": task.text, "done": task.is_done} for task in asset.tasks]
     ai_insight = CreativeAIService(db).insight(asset)
-    return render("asset.html", request, asset=asset_card(asset), comments=comments, tasks=tasks, ai_insight=ai_insight, max_mb=request.app.state.settings.max_upload_bytes // 1024 // 1024, **shell_context(db, user, membership, "assets"))
+    return render("asset.html", request, asset=asset_card(asset), comments=comments, tasks=tasks, ai_insight=ai_insight, comment_request_id=uuid4().hex, max_mb=request.app.state.settings.max_upload_bytes // 1024 // 1024, **shell_context(db, user, membership, "assets"))
 
 
 @router.post("/assets/{asset_id}/comments", response_class=HTMLResponse)
-def add_comment(asset_id: int, request: Request, text: str = Form(...), parent_id: str = Form(""), db: Session = Depends(get_db)):
+def add_comment(
+    asset_id: int,
+    request: Request,
+    text: str = Form(...),
+    parent_id: str = Form(""),
+    client_request_id: str = Form(""),
+    db: Session = Depends(get_db),
+):
     user = web_user(request, db)
     asset = authorized_asset(asset_id, user.id, db) if user else None
     if not asset:
         return HTMLResponse("Asset not found", 404)
-    item = Comment(
+    item, created = CommentService(db).create(
         asset_id=asset_id,
         author_id=user.id,
         body=text.strip(),
         parent_id=valid_comment_parent(parent_id, asset_id, db),
+        client_request_id=client_request_id,
     )
-    db.add(item)
-    db.commit()
-    db.refresh(item)
     item.author = user
-    return render(
+    response = render(
         "partials/comment_with_status.html",
         request,
         comment=comment_card(item, db),
         asset=asset_card(asset),
         status_target="status-wrap",
     )
+    response.headers["X-Idempotent-Replay"] = "false" if created else "true"
+    return response
 
 
 @router.post("/assets/{asset_id}/change-request")
@@ -831,6 +840,8 @@ def public_review(token: str, request: Request, db: Session = Depends(get_db)):
         token=token,
         asset=asset_card(asset),
         comments=[comment_card(c, db) for c in asset.comments],
+        comment_request_id=uuid4().hex,
+        change_request_id=uuid4().hex,
     )
     # Scope the secret to preview requests instead of repeating it in image URLs.
     response.set_cookie(
@@ -846,27 +857,36 @@ def public_review(token: str, request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/review/t/{token}/comments", response_class=HTMLResponse)
-def public_comment(token: str, request: Request, name: str = Form(...), text: str = Form(...), parent_id: str = Form(""), db: Session = Depends(get_db)):
+def public_comment(
+    token: str,
+    request: Request,
+    name: str = Form(...),
+    text: str = Form(...),
+    parent_id: str = Form(""),
+    client_request_id: str = Form(""),
+    db: Session = Depends(get_db),
+):
     try:
         _, asset = ReviewService(db).resolve(token)
     except AppError:
         return HTMLResponse("Review link expired", 404)
-    item = Comment(
+    def mark_changes_requested() -> None:
+        asset.status = AssetStatus.CHANGES_REQUESTED
+        asset.approved_at = None
+        for version in asset.versions:
+            if not version.preview_deleted_at:
+                version.preview_delete_after = None
+
+    item, created = CommentService(db).create(
         asset_id=asset.id,
         guest_name=name.strip(),
         guest_role="client",
         body=text.strip(),
         parent_id=valid_comment_parent(parent_id, asset.id, db),
+        client_request_id=client_request_id,
+        before_commit=mark_changes_requested,
     )
-    db.add(item)
-    asset.status = AssetStatus.CHANGES_REQUESTED
-    asset.approved_at = None
-    for version in asset.versions:
-        if not version.preview_deleted_at:
-            version.preview_delete_after = None
-    db.commit()
-    db.refresh(item)
-    return render(
+    response = render(
         "partials/comment_with_status.html",
         request,
         comment=comment_card(item, db),
@@ -874,6 +894,8 @@ def public_comment(token: str, request: Request, name: str = Form(...), text: st
         status_target="review-status",
         public=True,
     )
+    response.headers["X-Idempotent-Replay"] = "false" if created else "true"
+    return response
 
 
 @router.post("/review/t/{token}/change-request")
@@ -882,27 +904,31 @@ def public_change_request(
     request: Request,
     name: str = Form(...),
     text: str = Form(...),
+    client_request_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
     try:
         _, asset = ReviewService(db).resolve(token)
     except AppError:
         return HTMLResponse("Review link expired", 404)
-    db.add(
-        Comment(
-            asset_id=asset.id,
-            guest_name=name.strip(),
-            guest_role="client",
-            body=text.strip(),
-        )
+    def mark_changes_requested() -> None:
+        asset.status = AssetStatus.CHANGES_REQUESTED
+        asset.approved_at = None
+        for version in asset.versions:
+            if not version.preview_deleted_at:
+                version.preview_delete_after = None
+
+    _, created = CommentService(db).create(
+        asset_id=asset.id,
+        guest_name=name.strip(),
+        guest_role="client",
+        body=text.strip(),
+        client_request_id=client_request_id,
+        before_commit=mark_changes_requested,
     )
-    asset.status = AssetStatus.CHANGES_REQUESTED
-    asset.approved_at = None
-    for version in asset.versions:
-        if not version.preview_deleted_at:
-            version.preview_delete_after = None
-    db.commit()
-    return RedirectResponse(f"/review/t/{token}", status_code=303)
+    response = RedirectResponse(f"/review/t/{token}", status_code=303)
+    response.headers["X-Idempotent-Replay"] = "false" if created else "true"
+    return response
 
 
 @router.post("/review/t/{token}/decision", response_class=HTMLResponse)

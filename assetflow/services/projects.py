@@ -15,6 +15,7 @@ from assetflow.db.models import (
     User,
 )
 from assetflow.schemas.projects import AssetCreate, CommentCreate, ProjectCreate
+from assetflow.services.comments import CommentService
 from assetflow.services.workspaces import WorkspaceService
 
 
@@ -49,14 +50,16 @@ class ProjectService:
         self.db.refresh(asset)
         return asset
 
-    def add_comment(self, asset_id: int, actor: User, data: CommentCreate) -> Comment:
+    def add_comment(self, asset_id: int, actor: User, data: CommentCreate) -> tuple[Comment, bool]:
         asset = self._asset(asset_id)
         self.workspaces.require_member(asset.project.workspace_id, actor.id)
-        comment = Comment(asset_id=asset_id, author_id=actor.id, body=data.body, parent_id=data.parent_id)
-        self.db.add(comment)
-        self.db.commit()
-        self.db.refresh(comment)
-        return comment
+        return CommentService(self.db).create(
+            asset_id=asset_id,
+            author_id=actor.id,
+            body=data.body,
+            parent_id=data.parent_id,
+            client_request_id=data.client_request_id,
+        )
 
     def update_status(
         self,

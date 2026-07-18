@@ -32,6 +32,12 @@ class AssetRead(AssetCreate):
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1, max_length=5000)
     parent_id: int | None = None
+    client_request_id: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )
 
 
 class StatusUpdate(BaseModel):
@@ -46,4 +52,9 @@ class InviteCreate(BaseModel):
 class GuestCommentCreate(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     body: str = Field(min_length=1, max_length=5000)
-
+    client_request_id: str | None = Field(
+        default=None,
+        min_length=8,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9_-]+$",
+    )

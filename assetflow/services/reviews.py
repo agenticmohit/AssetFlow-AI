@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from assetflow.core.errors import AppError, NotFoundError
 from assetflow.core.security import new_token, token_hash
 from assetflow.db.models import Asset, AssetStatus, Comment, ReviewLink
+from assetflow.services.comments import CommentService
 
 
 class ReviewService:
@@ -38,13 +39,30 @@ class ReviewService:
             raise NotFoundError("Asset not found")
         return link, asset
 
-    def comment(self, raw: str, name: str, body: str) -> Comment:
+    def comment(
+        self,
+        raw: str,
+        name: str,
+        body: str,
+        client_request_id: str | None = None,
+    ) -> tuple[Comment, bool]:
         _, asset = self.resolve(raw)
-        comment = Comment(asset_id=asset.id, guest_name=name, guest_role="client", body=body)
-        self.db.add(comment)
-        self.db.commit()
-        self.db.refresh(comment)
-        return comment
+
+        def mark_changes_requested() -> None:
+            asset.status = AssetStatus.CHANGES_REQUESTED
+            asset.approved_at = None
+            for version in asset.versions:
+                if not version.preview_deleted_at:
+                    version.preview_delete_after = None
+
+        return CommentService(self.db).create(
+            asset_id=asset.id,
+            guest_name=name,
+            guest_role="client",
+            body=body,
+            client_request_id=client_request_id,
+            before_commit=mark_changes_requested,
+        )
 
     def decide(self, raw: str, status: AssetStatus, retention_days: int = 10) -> Asset:
         _, asset = self.resolve(raw)

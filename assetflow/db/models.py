@@ -101,6 +101,13 @@ class AssetVersion(TimestampMixin, Base):
 
 class Comment(TimestampMixin, Base):
     __tablename__ = "comments"
+    __table_args__ = (
+        UniqueConstraint(
+            "asset_id",
+            "client_request_id",
+            name="uq_comments_asset_client_request",
+        ),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True)
     author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
@@ -108,6 +115,7 @@ class Comment(TimestampMixin, Base):
     guest_role: Mapped[str | None] = mapped_column(String(50), nullable=True)
     body: Mapped[str] = mapped_column(Text)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id"), nullable=True)
+    client_request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     asset: Mapped[Asset] = relationship(back_populates="comments")
     author: Mapped[User | None] = relationship(foreign_keys=[author_id])
 

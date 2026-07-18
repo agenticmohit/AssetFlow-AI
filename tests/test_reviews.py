@@ -1,4 +1,6 @@
-from assetflow.db.models import Asset
+from sqlalchemy import func, select
+
+from assetflow.db.models import Asset, AssetStatus, Comment
 from assetflow.services.reviews import ReviewService
 
 
@@ -13,6 +15,59 @@ def test_public_review_comment_and_decision(client, db, owner):
     decision = client.patch(f"/api/public/reviews/{token}/decision", json={"status": "approved"})
     assert decision.status_code == 200
     assert decision.json()["status"] == "approved"
+
+
+def test_public_comment_retry_is_idempotent_and_keeps_review_state(client, db, owner):
+    project_id = client.post(
+        "/api/workspaces/1/projects", headers=owner["headers"], json={"name": "Client retry"}
+    ).json()["id"]
+    asset_id = client.post(
+        f"/api/projects/{project_id}/assets", headers=owner["headers"], json={"title": "Review"}
+    ).json()["id"]
+    _, token = ReviewService(db).create_link(db.get(Asset, asset_id))
+    headers = {"Idempotency-Key": "guest_retry_001"}
+
+    first = client.post(
+        f"/api/public/reviews/{token}/comments",
+        headers=headers,
+        json={"name": "Client Person", "body": "One clear note"},
+    )
+    retry = client.post(
+        f"/api/public/reviews/{token}/comments",
+        headers=headers,
+        json={"name": "Client Person", "body": "One clear note"},
+    )
+
+    assert first.json()["id"] == retry.json()["id"]
+    assert first.headers["x-idempotent-replay"] == "false"
+    assert retry.headers["x-idempotent-replay"] == "true"
+    assert db.scalar(select(func.count(Comment.id)).where(Comment.asset_id == asset_id)) == 1
+    assert db.get(Asset, asset_id).status == AssetStatus.CHANGES_REQUESTED
+
+
+def test_public_web_comment_retry_returns_same_thread_item(client, db, owner):
+    project_id = client.post(
+        "/api/workspaces/1/projects", headers=owner["headers"], json={"name": "Web retry"}
+    ).json()["id"]
+    asset_id = client.post(
+        f"/api/projects/{project_id}/assets", headers=owner["headers"], json={"title": "Review"}
+    ).json()["id"]
+    _, token = ReviewService(db).create_link(db.get(Asset, asset_id))
+    payload = {
+        "name": "Client Person",
+        "text": "Please keep this once",
+        "client_request_id": "web_guest_retry_001",
+    }
+
+    first = client.post(f"/review/t/{token}/comments", data=payload)
+    retry = client.post(f"/review/t/{token}/comments", data=payload)
+
+    assert first.status_code == retry.status_code == 200
+    assert first.headers["x-idempotent-replay"] == "false"
+    assert retry.headers["x-idempotent-replay"] == "true"
+    assert first.text.count('id="comment-') == 1
+    assert retry.text.count('id="comment-') == 1
+    assert db.scalar(select(func.count(Comment.id)).where(Comment.asset_id == asset_id)) == 1
 
 
 def test_invalid_review_link_returns_404(client):
