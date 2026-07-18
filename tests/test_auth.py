@@ -1,9 +1,12 @@
+from sqlalchemy import select
+
 from assetflow.core.security import (
     create_access_token,
     decode_access_token,
     hash_password,
     verify_password,
 )
+from assetflow.db.models import Workspace
 
 
 def test_password_hash_round_trip():
@@ -32,6 +35,36 @@ def test_signup_login_and_duplicate(client):
     login = client.post("/api/auth/login", json={"email": payload["email"], "password": payload["password"]})
     assert login.status_code == 200
     assert login.json()["access_token"]
+
+
+def test_signup_workspace_name_is_optional(client, db):
+    omitted = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "solo@example.com",
+            "name": "Solo Designer",
+            "password": "long-password",
+        },
+    )
+    blank = client.post(
+        "/api/auth/signup",
+        json={
+            "email": "freelancer@example.com",
+            "name": "Freelance Designer",
+            "password": "long-password",
+            "workspace_name": "   ",
+        },
+    )
+
+    assert omitted.status_code == 201
+    assert blank.status_code == 201
+    workspaces = list(db.scalars(select(Workspace).order_by(Workspace.id)))
+    assert [workspace.name for workspace in workspaces] == [
+        "Personal workspace",
+        "Personal workspace",
+    ]
+    assert workspaces[0].slug == "personal-workspace"
+    assert workspaces[1].slug == "personal-workspace-2"
 
 
 def test_login_rejects_invalid_credentials(client):

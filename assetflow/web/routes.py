@@ -313,7 +313,7 @@ def signup_submit(
             email=email.strip(),
             name=name.strip(),
             password=password,
-            workspace_name=workspace_name.strip(),
+            workspace_name=workspace_name.strip() or None,
         )
     except ValidationError:
         return RedirectResponse(f"/signup?{urlencode(query)}", status_code=303)

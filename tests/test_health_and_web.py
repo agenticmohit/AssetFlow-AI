@@ -1,3 +1,8 @@
+from sqlalchemy import select
+
+from assetflow.db.models import Workspace
+
+
 def test_health_checks(client):
     assert client.get("/health/live").json() == {"status": "ok"}
     ready = client.get("/health/ready")
@@ -179,6 +184,31 @@ def test_web_authentication_flow(client):
     assert invalid_signup.status_code == 303
     assert invalid_signup.headers["location"] == "/signup?error=invalid_details"
     assert "Check your details" in client.get(invalid_signup.headers["location"]).text
+
+
+def test_web_signup_allows_an_unnamed_personal_workspace(client, db):
+    page = client.get("/signup")
+    assert page.status_code == 200
+    assert "Workspace name <small>(optional)</small>" in page.text
+    assert 'name="workspace_name"' in page.text
+    workspace_input = page.text.split('name="workspace_name"', 1)[1].split(">", 1)[0]
+    assert "required" not in workspace_input
+
+    signup = client.post(
+        "/signup",
+        data={
+            "email": "independent@example.com",
+            "name": "Independent Designer",
+            "password": "strong-password",
+            "workspace_name": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert signup.status_code == 303
+    assert signup.headers["location"] == "/"
+    workspace = db.scalar(select(Workspace))
+    assert workspace.name == "Personal workspace"
 
 
 def test_persisted_asset_page_and_comment(client):

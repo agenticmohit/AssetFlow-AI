@@ -36,13 +36,14 @@ class AuthService:
     def signup(self, data: SignupRequest) -> tuple[User, str]:
         if self.db.scalar(select(User).where(User.email == data.email.lower())):
             raise ConflictError("An account with this email already exists")
-        base_slug = slugify(data.workspace_name)
+        workspace_name = data.workspace_name or "Personal workspace"
+        base_slug = slugify(workspace_name)
         slug, suffix = base_slug, 1
         while self.db.scalar(select(Workspace).where(Workspace.slug == slug)):
             suffix += 1
             slug = f"{base_slug}-{suffix}"
         user = User(email=data.email.lower(), name=data.name, password_hash=hash_password(data.password))
-        workspace = Workspace(name=data.workspace_name, slug=slug)
+        workspace = Workspace(name=workspace_name, slug=slug)
         self.db.add_all([user, workspace])
         self.db.flush()
         self.db.add(WorkspaceMember(user_id=user.id, workspace_id=workspace.id, role=Role.OWNER))

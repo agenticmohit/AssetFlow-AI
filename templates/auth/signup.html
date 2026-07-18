@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Join workspace' if invitation else 'Create designer workspace' }} · Make It Pop{% endblock %}
+{% block title %}{{ 'Join workspace' if invitation else 'Create designer account' }} · Make It Pop{% endblock %}
 {% block extra_styles %}<link rel="stylesheet" href="/static/auth.css?v=3">{% endblock %}
 {% block body %}
 <main class="access-page access-page-signup">
@@ -28,8 +28,8 @@
     <div class="access-card access-card-wide">
       <div class="access-card-heading">
         <span class="access-kicker"><i></i>{{ 'Designer invitation' if invitation else 'Built for freelance designers' }}</span>
-        <h1>{{ 'Join ' + invitation.workspace if invitation else 'Create your workspace.' }}</h1>
-        <p>{{ 'Set up your Designer account to join this feedback loop.' if invitation else 'Bring projects, client feedback, revisions, and decisions into one calm place.' }}</p>
+        <h1>{{ 'Join ' + invitation.workspace if invitation else 'Create your designer account.' }}</h1>
+        <p>{{ 'Set up your Designer account to join this feedback loop.' if invitation else 'Start with a personal space for projects, client feedback, revisions, and decisions.' }}</p>
       </div>
 
       {% set error = request.query_params.get('error') %}
@@ -59,8 +59,8 @@
             <input name="name" autocomplete="name" placeholder="Alex Morgan" required minlength="2" autofocus>
           </label>
           <label>
-            <span>Workspace name</span>
-            <input name="workspace_name" autocomplete="organization" placeholder="North Studio" required minlength="2">
+            <span>Workspace name <small>(optional)</small></span>
+            <input name="workspace_name" autocomplete="organization" placeholder="e.g. North Studio" minlength="2" maxlength="120">
           </label>
         </div>
         <label>
@@ -73,7 +73,7 @@
           <input type="password" name="password" autocomplete="new-password" placeholder="At least 8 characters" required minlength="8">
         </label>
         <button class="access-submit" type="submit">
-          <span>{{ 'Join workspace' if invitation else 'Create workspace' }}</span>
+          <span>{{ 'Join workspace' if invitation else 'Create account' }}</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </form>
