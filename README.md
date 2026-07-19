@@ -70,34 +70,6 @@ Password: MakeItPop123!
 
 An OpenAI API key is optional for local development. Add it to `.env` to enable live AI feedback summaries and task suggestions; the rest of the product works without it.
 
-## Deploy to Railway (SQLite)
-
-The repository ships with a `Dockerfile` and `railway.json`, so Railway builds and runs it without extra configuration files.
-
-1. Create a Railway service from this GitHub repository.
-2. Add a **volume** to the service and mount it at `/data`. This is where the SQLite database, uploads, and the auto-generated secret key live; without it, data is lost on every deploy.
-3. Under **Settings → Networking**, generate a public domain.
-4. Deploy. No environment variables are required for a first launch.
-
-The container configures itself for production:
-
-- `ASSETFLOW_ENVIRONMENT` defaults to `production`.
-- The database defaults to `sqlite:////data/assetflow.db` (WAL mode, single worker).
-- Uploads default to `/data/uploads`.
-- A secret key is generated once and persisted at `/data/.secret_key`.
-- Railway's domains (`RAILWAY_PUBLIC_DOMAIN`, `RAILWAY_PRIVATE_DOMAIN`) and the
-  `healthcheck.railway.app` probe host are trusted automatically.
-- Database migrations run automatically before the server starts.
-
-Optional environment variables to override the defaults:
-
-| Variable | Purpose |
-| --- | --- |
-| `ASSETFLOW_SECRET_KEY` | Explicit session-signing secret (32+ characters). |
-| `ASSETFLOW_ALLOWED_HOSTS` | Extra hostnames, e.g. a custom domain. Railway domains are appended automatically. |
-| `OPENAI_API_KEY` | Enables live AI summaries and task suggestions. |
-| `ASSETFLOW_DATABASE_URL` / `DATABASE_URL` | Point at Postgres later (`postgres://…` URLs are normalized automatically). |
-
 ## Feedback
 
 Make It Pop is being built for designers who want a sharper, friendlier alternative to collecting creative feedback in scattered messages. Product feedback, workflow ideas, and thoughtful bug reports are welcome through GitHub Issues.
