@@ -18,10 +18,35 @@ document.addEventListener("alpine:initialized", () => {
 });
 
 const PENDING_COMMENT_STORAGE_KEY = "make-it-pop-pending-comments-v1";
+const REVIEWER_NAME_STORAGE_KEY = "make-it-pop-reviewer-name-v1";
 const PENDING_COMMENT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const MAX_COMMENT_RETRIES = 3;
 const commentRetryTimers = new Map();
 const feedbackReconnectTimers = new WeakMap();
+
+function bindReviewerNamePersistence(root = document) {
+  const fields = Array.from(root.querySelectorAll("[data-reviewer-name]"));
+  if (!fields.length) return;
+  let remembered = "";
+  try {
+    remembered = localStorage.getItem(REVIEWER_NAME_STORAGE_KEY) || "";
+  } catch {}
+  fields.forEach((field) => {
+    if (!field.value && remembered) field.value = remembered;
+    if (field.dataset.reviewerNameBound === "true") return;
+    field.dataset.reviewerNameBound = "true";
+    field.addEventListener("input", () => {
+      const value = field.value.trim();
+      try {
+        if (value) localStorage.setItem(REVIEWER_NAME_STORAGE_KEY, value);
+        else localStorage.removeItem(REVIEWER_NAME_STORAGE_KEY);
+      } catch {}
+      document.querySelectorAll("[data-reviewer-name]").forEach((other) => {
+        if (other !== field) other.value = field.value;
+      });
+    });
+  });
+}
 
 function newCommentRequestId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -211,6 +236,7 @@ function placeWorkspaceThemeToggle() {
 document.addEventListener("DOMContentLoaded", () => {
   placeWorkspaceThemeToggle();
   bindThemeToggle();
+  bindReviewerNamePersistence();
   bindResilientCommentForms();
   bindFeedbackRealtime();
 });
@@ -487,5 +513,6 @@ document.addEventListener("htmx:afterSwap", (event) => {
   }
   syncFeedbackThreads();
   bindReviewLinkCopy(event.detail.target || document);
+  bindReviewerNamePersistence(event.detail.target || document);
   bindResilientCommentForms(event.detail.target || document);
 });

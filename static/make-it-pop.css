@@ -2221,3 +2221,93 @@ html.preview-open {
     height: calc(100% - 32px) !important;
   }
 }
+
+/* Keep the client artwork and conversation visually balanced. */
+@media (min-width: 721px) {
+  .public-grid {
+    grid-auto-rows: clamp(660px, calc(100vh - 255px), 820px);
+    align-items: stretch !important;
+  }
+
+  .public-grid > .public-design-stage,
+  .public-grid > .public-feedback-panel {
+    height: auto !important;
+    min-height: 0 !important;
+    align-self: stretch;
+  }
+}
+
+.field-optional {
+  margin-left: 5px;
+  color: var(--color-text-muted) !important;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Connection state is signal, not a badge: fixed width prevents layout jumps. */
+.thread-live,
+[data-live-connection="connecting"] .thread-live,
+[data-live-connection="reconnecting"] .thread-live,
+[data-live-connection="offline"] .thread-live,
+html[data-theme="dark"] .thread-live {
+  width: 86px;
+  min-width: 86px;
+  padding: 0 !important;
+  justify-content: flex-end;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.thread-live i {
+  width: 7px;
+  height: 7px;
+  box-shadow: none !important;
+}
+
+[data-live-connection="connected"] .thread-live {
+  color: var(--color-success) !important;
+}
+
+[data-live-connection="connecting"] .thread-live,
+[data-live-connection="reconnecting"] .thread-live {
+  color: var(--color-warning) !important;
+}
+
+[data-live-connection="offline"] .thread-live {
+  color: var(--color-text-muted) !important;
+}
+
+html[data-theme="dark"] [data-live-connection="connected"] .thread-live {
+  color: #7bd3a8 !important;
+}
+
+html[data-theme="dark"] [data-live-connection="connecting"] .thread-live,
+html[data-theme="dark"] [data-live-connection="reconnecting"] .thread-live {
+  color: #f4c760 !important;
+}
+
+html[data-theme="dark"] [data-live-connection="offline"] .thread-live {
+  color: #9eabc0 !important;
+}
+
+@media (min-width: 601px) {
+  .review-feedback-panel .feedback-filter-row {
+    grid-template-columns: auto 86px minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .thread-live,
+  [data-live-connection="connecting"] .thread-live,
+  [data-live-connection="reconnecting"] .thread-live,
+  [data-live-connection="offline"] .thread-live {
+    justify-content: flex-start;
+  }
+}

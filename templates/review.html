@@ -42,7 +42,7 @@
           <input type="hidden" name="client_request_id" value="{{comment_request_id}}">
           <input type="hidden" name="parent_id" :value="replyTo">
           <div x-show="replyTo" class="reply-banner">Replying to <b x-text="replyName"></b><button type="button" @click="replyTo='';replyName=''">×</button></div>
-          <label>Your name<input class="field" name="name" required minlength="2" maxlength="120" placeholder="Client name"></label>
+          <label>Your name <span class="field-optional">Optional</span><input class="field" name="name" maxlength="120" autocomplete="name" data-reviewer-name placeholder="Client"></label>
           <label>Feedback<textarea class="field h-28" name="text" required maxlength="5000" placeholder="What works? What should change? Drop an emoji too 😊"></textarea></label>
           <p class="comment-delivery-status" data-comment-delivery-status role="status" aria-live="polite"></p>
           <button class="btn-dark w-full justify-center mt-3">Send feedback ↑</button>
@@ -59,7 +59,7 @@
       <p class="text-sm text-black/50 mt-3">This note becomes part of the feedback thread, so the designer has clear direction.</p>
       <form action="/review/t/{{token}}/change-request" method="post" class="mt-5">
         <input type="hidden" name="client_request_id" value="{{change_request_id}}">
-        <label class="field-label">Your name</label><input class="field" name="name" required minlength="2" maxlength="120" placeholder="Client name">
+        <label class="field-label">Your name <span class="field-optional">Optional</span></label><input class="field" name="name" maxlength="120" autocomplete="name" data-reviewer-name placeholder="Client">
         <label class="field-label">Change request</label><textarea class="field h-32" name="text" required minlength="2" maxlength="5000" placeholder="Please adjust the headline, spacing, colour, or crop…"></textarea>
         <button class="btn-dark w-full justify-center mt-4">Send change request →</button>
       </form>

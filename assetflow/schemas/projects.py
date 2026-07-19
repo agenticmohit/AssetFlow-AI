@@ -50,7 +50,7 @@ class InviteCreate(BaseModel):
 
 
 class GuestCommentCreate(BaseModel):
-    name: str = Field(min_length=2, max_length=120)
+    name: str = Field(default="Client", max_length=120)
     body: str = Field(min_length=1, max_length=5000)
     client_request_id: str | None = Field(
         default=None,

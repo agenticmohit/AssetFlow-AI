@@ -1041,7 +1041,7 @@ def public_comment(
     token: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    name: str = Form(...),
+    name: str = Form(""),
     text: str = Form(...),
     parent_id: str = Form(""),
     client_request_id: str = Form(""),
@@ -1060,7 +1060,7 @@ def public_comment(
 
     item, created = CommentService(db).create(
         asset_id=asset.id,
-        guest_name=name.strip(),
+        guest_name=name.strip() or "Client",
         guest_role="client",
         body=text.strip(),
         parent_id=valid_comment_parent(parent_id, asset.id, db),
@@ -1090,7 +1090,7 @@ def public_change_request(
     token: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    name: str = Form(...),
+    name: str = Form(""),
     text: str = Form(...),
     client_request_id: str = Form(""),
     db: Session = Depends(get_db),
@@ -1108,7 +1108,7 @@ def public_change_request(
 
     item, created = CommentService(db).create(
         asset_id=asset.id,
-        guest_name=name.strip(),
+        guest_name=name.strip() or "Client",
         guest_role="client",
         body=text.strip(),
         client_request_id=client_request_id,

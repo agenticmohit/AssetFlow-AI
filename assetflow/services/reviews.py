@@ -53,7 +53,7 @@ class ReviewService:
 
         return CommentService(self.db).create(
             asset_id=asset.id,
-            guest_name=name,
+            guest_name=name.strip() or "Client",
             guest_role="client",
             body=body,
             client_request_id=client_request_id,

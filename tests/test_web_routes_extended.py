@@ -469,13 +469,34 @@ def test_change_request_forms_create_feedback_and_status(client, db):
     assert "make-it-pop-mark.svg" not in review_page.text
     assert "A focused review space" not in review_page.text
     assert "Keep the original design file" not in review_page.text
+    assert review_page.text.count("data-reviewer-name") == 2
+    assert 'class="field-optional">Optional' in review_page.text
     public = client.post(
         f"/review/t/{token}/change-request",
-        data={"name": "Client Reviewer", "text": "Use the warmer brand colour"},
+        data={"text": "Use the warmer brand colour"},
         follow_redirects=False,
     )
     assert public.status_code == 303
     assert db.scalar(select(func.count(Comment.id)).where(Comment.asset_id == asset_id)) == 2
+    change_request = db.scalar(
+        select(Comment).where(
+            Comment.asset_id == asset_id,
+            Comment.body == "Use the warmer brand colour",
+        )
+    )
+    assert change_request.guest_name == "Client"
+    unnamed_feedback = client.post(
+        f"/review/t/{token}/comments",
+        data={"text": "The optional reviewer name works"},
+    )
+    assert unnamed_feedback.status_code == 200
+    unnamed_comment = db.scalar(
+        select(Comment).where(
+            Comment.asset_id == asset_id,
+            Comment.body == "The optional reviewer name works",
+        )
+    )
+    assert unnamed_comment.guest_name == "Client"
     generated = client.post(f"/assets/{asset_id}/ai/tasks")
     assert generated.status_code == 200
     assert "warmer brand colour" in generated.text.lower()

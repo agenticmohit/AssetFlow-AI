@@ -12,6 +12,12 @@ def test_public_review_comment_and_decision(client, db, owner):
     assert view.status_code == 200
     comment = client.post(f"/api/public/reviews/{token}/comments", json={"name": "Client Person", "body": "Looks polished"})
     assert comment.status_code == 201
+    unnamed = client.post(
+        f"/api/public/reviews/{token}/comments",
+        json={"body": "A note without repeating my name"},
+    )
+    assert unnamed.status_code == 201
+    assert unnamed.json()["name"] == "Client"
     decision = client.patch(f"/api/public/reviews/{token}/decision", json={"status": "approved"})
     assert decision.status_code == 200
     assert decision.json()["status"] == "approved"
