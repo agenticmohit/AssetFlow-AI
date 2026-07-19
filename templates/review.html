@@ -14,12 +14,7 @@
         <h1 class="display">{{asset.title}}</h1>
         <div class="public-review-meta"><p class="text-sm text-black/40">Version {{asset.version}} · Ready for your feedback</p><div id="review-status">{% include "partials/status.html" %}</div></div>
       </div>
-      <div class="ml-auto flex gap-2">
-        <button @click="changes=true" class="btn-light">↻ Request changes</button>
-        <form hx-post="/review/t/{{token}}/decision" hx-target="#review-status">
-          <input type="hidden" name="status" value="approved"><button class="btn-dark">✓ Approve design</button>
-        </form>
-      </div>
+      {% include "partials/public_review_actions.html" %}
     </div>
     <div class="public-grid grid grid-cols-[1fr_380px] gap-6 mt-5">
       <div class="preview-stage public-design-stage"><button type="button" class="review-preview-trigger" @click="previewOpen=true" aria-label="Open large preview of {{asset.title}}"><img src="{{asset.image}}" alt="{{asset.title}}"><span class="preview-zoom-affordance" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4.1 4.1M10.8 8.1v5.4M8.1 10.8h5.4"></path></svg><b>Preview</b></span></button></div>

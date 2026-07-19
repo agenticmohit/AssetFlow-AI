@@ -2010,6 +2010,53 @@ html[data-theme="dark"] .review-feedback-panel .feedback-tabs .feedback-tab.is-a
   }
 }
 
+.public-review-actions {
+  align-items: center;
+  flex: none;
+}
+
+.btn-approved-decision {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #167a50;
+  border-radius: 10px;
+  background: #167a50;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: default;
+  box-shadow: 0 7px 18px rgba(22, 122, 80, 0.2);
+  opacity: 1;
+}
+
+html[data-theme="dark"] .btn-approved-decision {
+  border-color: #278c64;
+  background: #1d6f4e;
+  color: #f2fff8;
+}
+
+@media (max-width: 560px) {
+  .public-review-actions {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .public-review-actions > button,
+  .public-review-actions > form {
+    flex: 1;
+  }
+
+  .public-review-actions form button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Focused artwork preview shared by designer and client review screens. */
 html.preview-open {
   overflow: hidden;

@@ -1142,7 +1142,13 @@ def public_decision(
         asset.id,
         {"type": "status.updated", "status_html": feedback_status_html(asset)},
     )
-    return render("partials/status.html", request, asset=asset_card(asset))
+    return render(
+        "partials/public_review_actions.html",
+        request,
+        asset=asset_card(asset),
+        token=token,
+        update_status=True,
+    )
 
 
 @router.get("/team/invite", response_class=HTMLResponse)

@@ -471,6 +471,7 @@ def test_change_request_forms_create_feedback_and_status(client, db):
     assert "Keep the original design file" not in review_page.text
     assert review_page.text.count("data-reviewer-name") == 2
     assert 'class="field-optional">Optional' in review_page.text
+    assert "Approve design" in review_page.text
     public = client.post(
         f"/review/t/{token}/change-request",
         data={"text": "Use the warmer brand colour"},
@@ -497,6 +498,17 @@ def test_change_request_forms_create_feedback_and_status(client, db):
         )
     )
     assert unnamed_comment.guest_name == "Client"
+    approved = client.post(
+        f"/review/t/{token}/decision",
+        data={"status": "approved"},
+    )
+    assert approved.status_code == 200
+    assert "btn-approved-decision" in approved.text
+    assert "✓ Approved" in approved.text
+    assert "Reopen review" in approved.text
+    assert "Approve design" not in approved.text
+    assert 'hx-swap-oob="outerHTML"' in approved.text
+    assert db.get(Asset, asset_id).status == AssetStatus.APPROVED
     generated = client.post(f"/assets/{asset_id}/ai/tasks")
     assert generated.status_code == 200
     assert "warmer brand colour" in generated.text.lower()

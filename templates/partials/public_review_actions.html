@@ -1,0 +1,14 @@
+<div id="review-actions" class="public-review-actions ml-auto flex gap-2">
+  <button type="button" @click="changes=true" class="btn-light">
+    {{'↻ Reopen review' if asset.status == 'Approved' else '↻ Request changes'}}
+  </button>
+  {% if asset.status == 'Approved' %}
+    <button type="button" class="btn-approved-decision" disabled aria-label="Design approved">✓ Approved</button>
+  {% else %}
+    <form hx-post="/review/t/{{token}}/decision" hx-target="#review-actions" hx-swap="outerHTML">
+      <input type="hidden" name="status" value="approved">
+      <button class="btn-dark">✓ Approve design</button>
+    </form>
+  {% endif %}
+</div>
+{% if update_status %}<div id="review-status" hx-swap-oob="outerHTML">{% include "partials/status.html" %}</div>{% endif %}
