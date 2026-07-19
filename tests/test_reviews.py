@@ -83,7 +83,7 @@ def test_guest_cannot_set_arbitrary_status(client, db, owner):
     assert response.status_code == 400
 
 
-def test_new_review_link_revokes_the_previous_link(client, db, owner):
+def test_new_review_link_keeps_previous_link_on_same_feedback_thread(client, db, owner):
     project_id = client.post(
         "/api/workspaces/1/projects",
         headers=owner["headers"],
@@ -92,14 +92,24 @@ def test_new_review_link_revokes_the_previous_link(client, db, owner):
     asset_id = client.post(
         f"/api/projects/{project_id}/assets",
         headers=owner["headers"],
-        json={"title": "Only latest link works"},
+        json={"title": "One continuous review"},
     ).json()["id"]
     asset = db.get(Asset, asset_id)
     first_link, first_token = ReviewService(db).create_link(asset)
     second_link, second_token = ReviewService(db).create_link(asset)
     db.refresh(first_link)
 
-    assert first_link.is_active is False
+    assert first_link.is_active is True
     assert second_link.expires_at is not None
-    assert client.get(f"/api/public/reviews/{first_token}").status_code == 404
+    assert client.get(f"/api/public/reviews/{first_token}").status_code == 200
     assert client.get(f"/api/public/reviews/{second_token}").status_code == 200
+
+    comment = client.post(
+        f"/api/public/reviews/{first_token}/comments",
+        json={"name": "Returning client", "body": "Keep this feedback on the next link"},
+    )
+
+    assert comment.status_code == 201
+    second_view = client.get(f"/review/t/{second_token}")
+    assert second_view.status_code == 200
+    assert "Keep this feedback on the next link" in second_view.text

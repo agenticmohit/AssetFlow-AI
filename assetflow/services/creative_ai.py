@@ -3,6 +3,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 
+import openai
 from openai import OpenAI
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -62,7 +63,7 @@ class CreativeAIService:
         if not comments:
             return {"available": False, "message": "Add client feedback before creating a summary."}
 
-        self._record_request(actor, asset, "summary")
+        request_log = self._record_request(actor, asset, "summary")
         feedback = self._feedback_text(comments, limit=8_000)
         try:
             response = self._client(api_key).responses.create(
@@ -89,6 +90,41 @@ class CreativeAIService:
                 "actions": [item[:160] for item in actions],
                 "themes": [item[:40] for item in themes],
                 "model": self.settings.openai_model,
+            }
+        except openai.AuthenticationError:
+            self._release_request(request_log)
+            logger.warning("AI summary rejected the configured API credential")
+            return {
+                "available": False,
+                "message": "The OpenAI API key was rejected. Update OPENAI_API_KEY in Railway and redeploy.",
+            }
+        except openai.RateLimitError:
+            self._release_request(request_log)
+            logger.warning("AI summary unavailable because OpenAI quota or rate limit was reached")
+            return {
+                "available": False,
+                "message": "OpenAI quota is currently unavailable. Check project billing or try again later.",
+            }
+        except (openai.APIConnectionError, openai.APITimeoutError):
+            self._release_request(request_log)
+            logger.warning("AI summary could not connect to OpenAI")
+            return {
+                "available": False,
+                "message": "OpenAI could not be reached. Your feedback is safe; try again shortly.",
+            }
+        except openai.BadRequestError:
+            self._release_request(request_log)
+            logger.warning("AI summary request was rejected for model or request configuration")
+            return {
+                "available": False,
+                "message": "The configured AI model could not process this request. Check ASSETFLOW_OPENAI_MODEL.",
+            }
+        except openai.APIError as exc:
+            self._release_request(request_log)
+            logger.warning("AI summary provider error: %s", type(exc).__name__)
+            return {
+                "available": False,
+                "message": "OpenAI could not complete the request. Your feedback is safe; try again shortly.",
             }
         except Exception as exc:
             logger.warning("AI summary unavailable: %s", type(exc).__name__)
@@ -133,7 +169,7 @@ class CreativeAIService:
         feedback = self._feedback_text(comments, limit=8_000)
         if not api_key or not feedback:
             return None
-        self._record_request(actor, asset, "tasks")
+        request_log = self._record_request(actor, asset, "tasks")
         try:
             response = self._client(api_key).responses.create(
                 model=self.settings.openai_model,
@@ -148,11 +184,14 @@ class CreativeAIService:
             parsed = self._parse_json(response.output_text)
             if isinstance(parsed, list):
                 return self._string_list(parsed, 6)
-        except Exception as exc:
+        except openai.APIError as exc:
+            self._release_request(request_log)
             logger.warning("AI task extraction unavailable; using local fallback: %s", type(exc).__name__)
+        except Exception as exc:
+            logger.warning("AI task response was unusable; using local fallback: %s", type(exc).__name__)
         return None
 
-    def _record_request(self, actor: User, asset: Asset, action: str) -> None:
+    def _record_request(self, actor: User, asset: Asset, action: str) -> AIRequestLog:
         settings = self.settings
         now = datetime.utcnow()
         cooldown = now - timedelta(seconds=settings.ai_cooldown_seconds)
@@ -178,10 +217,20 @@ class CreativeAIService:
         ) or 0
         if used >= settings.ai_hourly_request_limit:
             raise RateLimitError("The hourly AI allowance is used. Try again later.")
-        self.db.add(
-            AIRequestLog(user_id=actor.id, asset_id=asset.id, action=action, created_at=now)
+        request_log = AIRequestLog(
+            user_id=actor.id, asset_id=asset.id, action=action, created_at=now
         )
+        self.db.add(request_log)
         self.db.commit()
+        return request_log
+
+    def _release_request(self, request_log: AIRequestLog) -> None:
+        """Do not charge the app-level cooldown when OpenAI never produced a result."""
+        try:
+            self.db.delete(request_log)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
 
     def _client(self, api_key: str) -> OpenAI:
         return OpenAI(api_key=api_key, timeout=10.0, max_retries=1)

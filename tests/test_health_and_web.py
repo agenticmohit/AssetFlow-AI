@@ -91,7 +91,7 @@ def test_theme_assets_are_available_on_public_and_auth_pages(client):
         page = client.get(path)
         assert "/static/theme-init.js?v=1" in page.text
         assert "/static/theme.css?v=night-13" in page.text
-        assert "/static/make-it-pop.css?v=brand-20" in page.text
+        assert "/static/make-it-pop.css?v=brand-21" in page.text
         assert "data-theme-toggle" in page.text
         assert '<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=2">' in page.text
         assert '<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=2">' in page.text
@@ -235,7 +235,7 @@ def test_persisted_asset_page_and_comment(client):
     assert "UI poster" in page.text
     assert "data-resilient-comment" in page.text
     assert 'name="client_request_id"' in page.text
-    assert "/static/app.js?v=release-13" in page.text
+    assert "/static/app.js?v=release-14" in page.text
     comment = client.post(
         f"/assets/{asset.json()['id']}/comments", data={"text": "Polish the hierarchy"}
     )

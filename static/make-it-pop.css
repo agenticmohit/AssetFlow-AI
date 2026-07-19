@@ -1709,7 +1709,7 @@ html[data-theme="dark"] .feedback-filters button.active {
   border-bottom: 1px solid var(--color-border) !important;
 }
 
-.review-feedback-panel .feedback-tabs button {
+.review-feedback-panel .feedback-tabs .feedback-tab {
   min-width: 0;
   padding: 0 8px !important;
   display: inline-flex;
@@ -1717,14 +1717,17 @@ html[data-theme="dark"] .feedback-filters button.active {
   justify-content: center;
   gap: 6px;
   overflow: hidden;
+  border-color: transparent !important;
   color: var(--color-text-muted) !important;
   font-size: 14px !important;
   white-space: nowrap;
 }
 
-.review-feedback-panel .feedback-tabs button.border-\[\#1178F2\] {
+.review-feedback-panel .feedback-tabs .feedback-tab.is-active {
   border-color: var(--color-primary) !important;
-  color: var(--color-text-primary) !important;
+  color: var(--color-primary-hover) !important;
+  background: rgba(109, 74, 255, 0.08) !important;
+  border-radius: 8px 8px 0 0 !important;
 }
 
 .review-feedback-panel .feedback-content {
@@ -1850,6 +1853,43 @@ html[data-theme="dark"] .feedback-filters button.active {
   flex: none;
 }
 
+.review-feedback-panel .task-form {
+  height: 44px;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.review-feedback-panel .task-form input {
+  width: 100%;
+  height: 44px;
+  min-width: 0;
+  padding: 0 13px !important;
+  border-radius: 10px !important;
+}
+
+.review-feedback-panel .task-form .task-add-button {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center;
+  border-radius: 10px !important;
+}
+
+.review-feedback-panel .task-add-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
 html[data-theme="dark"] .review-workspace.asset-workspace-grid,
 html[data-theme="dark"] .review-workspace .asset-preview-panel {
   background: var(--color-canvas) !important;
@@ -1882,6 +1922,16 @@ html[data-theme="dark"] .review-feedback-panel .feedback-composer {
 
 html[data-theme="dark"] .review-feedback-panel .feedback-tabs {
   border-color: #29364b !important;
+}
+
+html[data-theme="dark"] .review-feedback-panel .feedback-tabs .feedback-tab {
+  color: #9eabc0 !important;
+}
+
+html[data-theme="dark"] .review-feedback-panel .feedback-tabs .feedback-tab.is-active {
+  border-color: #8c78ff !important;
+  background: rgba(109, 74, 255, 0.2) !important;
+  color: #f7f5ff !important;
 }
 
 @media (max-width: 1180px) {

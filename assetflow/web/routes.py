@@ -2,10 +2,19 @@ import logging
 import mimetypes
 from contextlib import suppress
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Form, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from pydantic import ValidationError
@@ -33,6 +42,7 @@ from assetflow.schemas.auth import SignupRequest
 from assetflow.services.auth import AuthService
 from assetflow.services.comments import CommentService
 from assetflow.services.creative_ai import CreativeAIService
+from assetflow.services.realtime import feedback_realtime
 from assetflow.services.reviews import ReviewService
 from assetflow.services.workspaces import WorkspaceService
 
@@ -170,6 +180,59 @@ def comment_card(comment: Comment, db: Session):
         "client_request_id": comment.client_request_id,
         "time": comment.created_at.strftime("%d %b · %I:%M %p") if comment.created_at else "Now",
     }
+
+
+def feedback_status_html(asset: Asset) -> str:
+    return templates.get_template("partials/status.html").render(asset=asset_card(asset))
+
+
+def feedback_comment_event(comment: Comment, asset: Asset, db: Session) -> dict:
+    card = comment_card(comment, db)
+    return {
+        "type": "comment.created",
+        "comment_id": comment.id,
+        "comment_html": templates.get_template("partials/comment.html").render(comment=card),
+        "status_html": feedback_status_html(asset),
+    }
+
+
+def feedback_snapshot(asset: Asset, db: Session) -> dict:
+    comments_html = "".join(
+        templates.get_template("partials/comment.html").render(comment=comment_card(item, db))
+        for item in asset.comments
+    )
+    return {
+        "type": "feedback.snapshot",
+        "comments_html": comments_html,
+        "status_html": feedback_status_html(asset),
+    }
+
+
+def load_feedback_asset(asset_id: int, db: Session) -> Asset | None:
+    return db.scalar(
+        select(Asset)
+        .where(Asset.id == asset_id)
+        .options(
+            selectinload(Asset.versions),
+            selectinload(Asset.comments).selectinload(Comment.author),
+            selectinload(Asset.tasks),
+            selectinload(Asset.assigned_designer),
+            selectinload(Asset.project),
+        )
+    )
+
+
+def websocket_origin_allowed(websocket: WebSocket) -> bool:
+    origin = websocket.headers.get("origin", "")
+    if not origin:
+        return websocket.app.state.settings.environment != "production"
+    origin_host = urlparse(origin).netloc.casefold()
+    request_hosts = {
+        websocket.headers.get("host", "").split(",", 1)[0].strip().casefold(),
+        websocket.headers.get("x-forwarded-host", "").split(",", 1)[0].strip().casefold(),
+    }
+    request_hosts.discard("")
+    return origin_host in request_hosts
 
 
 def valid_comment_parent(parent_id: str, asset_id: int, db: Session) -> int | None:
@@ -546,6 +609,69 @@ def new_asset_page(request: Request, project_id: int | None = None, db: Session 
     return render("asset_new.html", request, project_rows=rows, selected_project=project_id, max_mb=settings.max_upload_bytes // 1024 // 1024, max_bytes=settings.max_upload_bytes, **shell_context(db, user, membership, "assets"))
 
 
+@router.websocket("/ws/assets/{asset_id}")
+async def designer_feedback_socket(
+    websocket: WebSocket, asset_id: int, db: Session = Depends(get_db)
+):
+    if not websocket_origin_allowed(websocket):
+        await websocket.close(code=4403)
+        return
+    raw_session = websocket.cookies.get("assetflow_session", "")
+    try:
+        user = AuthService(db, websocket.app.state.settings).authenticate(raw_session)
+    except AuthenticationError:
+        await websocket.close(code=4401)
+        return
+    if not authorized_asset(asset_id, user.id, db):
+        await websocket.close(code=4403)
+        return
+    asset = load_feedback_asset(asset_id, db)
+    snapshot = feedback_snapshot(asset, db)
+    db.rollback()
+
+    await feedback_realtime.connect(asset_id, websocket)
+    await websocket.send_json(snapshot)
+    try:
+        while True:
+            message = await websocket.receive_text()
+            if message == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        feedback_realtime.disconnect(asset_id, websocket)
+
+
+@router.websocket("/ws/review/t/{token}")
+async def public_feedback_socket(
+    websocket: WebSocket, token: str, db: Session = Depends(get_db)
+):
+    if not websocket_origin_allowed(websocket):
+        await websocket.close(code=4403)
+        return
+    try:
+        _, resolved_asset = ReviewService(db).resolve(token)
+    except AppError:
+        await websocket.close(code=4404)
+        return
+    asset = load_feedback_asset(resolved_asset.id, db)
+    asset_id = asset.id
+    snapshot = feedback_snapshot(asset, db)
+    db.rollback()
+
+    await feedback_realtime.connect(asset_id, websocket)
+    await websocket.send_json(snapshot)
+    try:
+        while True:
+            message = await websocket.receive_text()
+            if message == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        feedback_realtime.disconnect(asset_id, websocket)
+
+
 @router.post("/assets")
 async def create_asset(
     request: Request,
@@ -628,13 +754,14 @@ def asset_detail(asset_id: int, request: Request, db: Session = Depends(get_db))
     tasks = [{"id": task.id, "text": task.text, "done": task.is_done} for task in asset.tasks]
     ai_insight = CreativeAIService(db).insight(asset)
     settings = request.app.state.settings
-    return render("asset.html", request, asset=asset_card(asset), comments=comments, tasks=tasks, ai_insight=ai_insight, comment_request_id=uuid4().hex, max_mb=settings.max_upload_bytes // 1024 // 1024, max_bytes=settings.max_upload_bytes, **shell_context(db, user, membership, "assets"))
+    return render("asset.html", request, asset=asset_card(asset), asset_id=asset.id, comments=comments, tasks=tasks, ai_insight=ai_insight, comment_request_id=uuid4().hex, max_mb=settings.max_upload_bytes // 1024 // 1024, max_bytes=settings.max_upload_bytes, **shell_context(db, user, membership, "assets"))
 
 
 @router.post("/assets/{asset_id}/comments", response_class=HTMLResponse)
 def add_comment(
     asset_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     text: str = Form(...),
     parent_id: str = Form(""),
     client_request_id: str = Form(""),
@@ -660,6 +787,12 @@ def add_comment(
         status_target="status-wrap",
     )
     response.headers["X-Idempotent-Replay"] = "false" if created else "true"
+    if created:
+        background_tasks.add_task(
+            feedback_realtime.broadcast,
+            asset_id,
+            feedback_comment_event(item, asset, db),
+        )
     return response
 
 
@@ -678,7 +811,13 @@ def request_asset_changes(
 
 
 @router.post("/assets/{asset_id}/status", response_class=HTMLResponse)
-def set_status(asset_id: int, request: Request, status: str = Form(...), db: Session = Depends(get_db)):
+def set_status(
+    asset_id: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+):
     user = web_user(request, db)
     asset = authorized_asset(asset_id, user.id, db) if user else None
     if not asset:
@@ -696,6 +835,11 @@ def set_status(asset_id: int, request: Request, status: str = Form(...), db: Ses
             if not version.preview_deleted_at:
                 version.preview_delete_after = None
     db.commit()
+    background_tasks.add_task(
+        feedback_realtime.broadcast,
+        asset_id,
+        {"type": "status.updated", "status_html": feedback_status_html(asset)},
+    )
     return render("partials/status.html", request, asset=asset_card(asset))
 
 
@@ -703,6 +847,7 @@ def set_status(asset_id: int, request: Request, status: str = Form(...), db: Ses
 def designer_action(
     asset_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     action: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -718,6 +863,11 @@ def designer_action(
         if not version.preview_deleted_at:
             version.preview_delete_after = None
     db.commit()
+    background_tasks.add_task(
+        feedback_realtime.broadcast,
+        asset_id,
+        {"type": "status.updated", "status_html": feedback_status_html(asset)},
+    )
     return render(
         "partials/designer_actions.html",
         request,
@@ -890,6 +1040,7 @@ def public_review(token: str, request: Request, db: Session = Depends(get_db)):
 def public_comment(
     token: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     name: str = Form(...),
     text: str = Form(...),
     parent_id: str = Form(""),
@@ -925,6 +1076,12 @@ def public_comment(
         public=True,
     )
     response.headers["X-Idempotent-Replay"] = "false" if created else "true"
+    if created:
+        background_tasks.add_task(
+            feedback_realtime.broadcast,
+            asset.id,
+            feedback_comment_event(item, asset, db),
+        )
     return response
 
 
@@ -932,6 +1089,7 @@ def public_comment(
 def public_change_request(
     token: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     name: str = Form(...),
     text: str = Form(...),
     client_request_id: str = Form(""),
@@ -948,7 +1106,7 @@ def public_change_request(
             if not version.preview_deleted_at:
                 version.preview_delete_after = None
 
-    _, created = CommentService(db).create(
+    item, created = CommentService(db).create(
         asset_id=asset.id,
         guest_name=name.strip(),
         guest_role="client",
@@ -958,15 +1116,32 @@ def public_change_request(
     )
     response = RedirectResponse(f"/review/t/{token}", status_code=303)
     response.headers["X-Idempotent-Replay"] = "false" if created else "true"
+    if created:
+        background_tasks.add_task(
+            feedback_realtime.broadcast,
+            asset.id,
+            feedback_comment_event(item, asset, db),
+        )
     return response
 
 
 @router.post("/review/t/{token}/decision", response_class=HTMLResponse)
-def public_decision(token: str, request: Request, status: str = Form(...), db: Session = Depends(get_db)):
+def public_decision(
+    token: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+):
     try:
         asset = ReviewService(db).decide(token, AssetStatus(status), request.app.state.settings.approved_preview_retention_days)
     except (AppError, ValueError):
         return HTMLResponse("Decision could not be saved", 422)
+    background_tasks.add_task(
+        feedback_realtime.broadcast,
+        asset.id,
+        {"type": "status.updated", "status_html": feedback_status_html(asset)},
+    )
     return render("partials/status.html", request, asset=asset_card(asset))
 
 

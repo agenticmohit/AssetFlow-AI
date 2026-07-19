@@ -134,3 +134,29 @@ def test_ai_actions_have_a_persisted_cooldown(monkeypatch, db):
     assert service.summarize(asset, user)["available"] is True
     with pytest.raises(RateLimitError):
         service.summarize(asset, user)
+
+
+def test_failed_ai_request_does_not_consume_cooldown(monkeypatch, db):
+    asset, user = feedback_asset(db)
+
+    class SimulatedConnectionError(Exception):
+        pass
+
+    class FailingResponses:
+        def create(self, **_):
+            raise SimulatedConnectionError("simulated connection outage")
+
+    class FakeOpenAI:
+        def __init__(self, **_):
+            self.responses = FailingResponses()
+
+    monkeypatch.setattr("assetflow.services.creative_ai.OpenAI", FakeOpenAI)
+    monkeypatch.setattr(
+        "assetflow.services.creative_ai.openai.APIConnectionError",
+        SimulatedConnectionError,
+    )
+    settings = Settings(environment="test", OPENAI_API_KEY="test-key")
+    service = CreativeAIService(db, settings)
+
+    assert service.summarize(asset, user)["available"] is False
+    assert service.summarize(asset, user)["available"] is False

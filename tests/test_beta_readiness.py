@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.engine import make_url
+from starlette.websockets import WebSocketDisconnect
 
 from assetflow.core.config import Settings
 from assetflow.main import create_app
@@ -190,6 +191,18 @@ def test_production_rejects_unverifiable_cookie_write(client, settings):
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "invalid_origin"
+
+
+def test_production_rejects_cross_site_feedback_websocket(client, settings):
+    settings.environment = "production"
+
+    with pytest.raises(WebSocketDisconnect) as rejected:
+        with client.websocket_connect(
+            "/ws/assets/1", headers={"Origin": "https://attacker.example"}
+        ):
+            pass
+
+    assert rejected.value.code == 4403
 
 
 def test_browser_responses_include_security_and_privacy_headers(client):

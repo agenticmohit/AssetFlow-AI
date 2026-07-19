@@ -55,6 +55,8 @@ def test_project_and_asset_forms_are_operational(client, db, settings):
     asset_page = client.get(f"/assets/{asset_id}")
     assert "Editorial tile" in asset_page.text
     assert "Share for review" in asset_page.text
+    assert f'hx-post="/assets/{asset_id}/ai/summary"' in asset_page.text
+    assert 'hx-post="/assets//ai/summary"' not in asset_page.text
     assert "Send this design for review" in asset_page.text
     assert "Open large preview of Editorial tile" in asset_page.text
     assert "Click the image or outside to close" in asset_page.text
@@ -373,6 +375,61 @@ def test_public_review_invalid_and_change_request(client, db):
     assert client.post(
         "/review/t/not-valid/comments", data={"name": "Client", "text": "Hello"}
     ).status_code == 404
+
+
+def test_feedback_websockets_sync_client_and_designer_without_refresh(client, db):
+    headers = web_owner(client)
+    project_id = client.post(
+        "/api/workspaces/1/projects", headers=headers, json={"name": "Live review"}
+    ).json()["id"]
+    created = client.post(
+        "/assets",
+        data={"project_id": project_id, "title": "Live poster"},
+        files={"file": ("live.png", b"preview", "image/png")},
+        follow_redirects=False,
+    )
+    asset_id = int(created.headers["location"].rsplit("/", 1)[1])
+    _, token = ReviewService(db).create_link(db.get(Asset, asset_id))
+    socket_headers = {"origin": "http://testserver"}
+
+    with client.websocket_connect(
+        f"/ws/assets/{asset_id}", headers=socket_headers
+    ) as designer_socket:
+        designer_snapshot = designer_socket.receive_json()
+        assert designer_snapshot["type"] == "feedback.snapshot"
+
+        with client.websocket_connect(
+            f"/ws/review/t/{token}", headers=socket_headers
+        ) as client_socket:
+            client_snapshot = client_socket.receive_json()
+            assert client_snapshot["type"] == "feedback.snapshot"
+
+            posted = client.post(
+                f"/review/t/{token}/comments",
+                data={
+                    "name": "Live Client",
+                    "text": "Increase the headline spacing",
+                    "client_request_id": "live-client-comment",
+                },
+            )
+            assert posted.status_code == 200
+
+            designer_event = designer_socket.receive_json()
+            client_event = client_socket.receive_json()
+            assert designer_event["type"] == "comment.created"
+            assert client_event["type"] == "comment.created"
+            assert "Increase the headline spacing" in designer_event["comment_html"]
+            assert "Changes Requested" in designer_event["status_html"]
+
+            designer_post = client.post(
+                f"/assets/{asset_id}/comments",
+                data={
+                    "text": "I will update the spacing now",
+                    "client_request_id": "live-designer-comment",
+                },
+            )
+            assert designer_post.status_code == 200
+            assert client_socket.receive_json()["type"] == "comment.created"
 
 
 def test_change_request_forms_create_feedback_and_status(client, db):

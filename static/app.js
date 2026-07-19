@@ -14,12 +14,14 @@ document.addEventListener("alpine:initialized", () => {
   bindReviewLinkCopy();
   bindThemeToggle();
   bindResilientCommentForms();
+  bindFeedbackRealtime();
 });
 
 const PENDING_COMMENT_STORAGE_KEY = "make-it-pop-pending-comments-v1";
 const PENDING_COMMENT_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const MAX_COMMENT_RETRIES = 3;
 const commentRetryTimers = new Map();
+const feedbackReconnectTimers = new WeakMap();
 
 function newCommentRequestId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -210,6 +212,119 @@ document.addEventListener("DOMContentLoaded", () => {
   placeWorkspaceThemeToggle();
   bindThemeToggle();
   bindResilientCommentForms();
+  bindFeedbackRealtime();
+});
+
+function feedbackSocketPath(root) {
+  if (root.dataset.feedbackChannel === "review") return `/ws${window.location.pathname}`;
+  return `/ws/assets/${root.dataset.assetId}`;
+}
+
+function setFeedbackLiveState(root, state, label) {
+  root.dataset.liveConnection = state;
+  root.querySelectorAll("[data-live-state]").forEach((badge) => {
+    const text = badge.querySelector("b");
+    if (text) text.textContent = label;
+  });
+}
+
+function replaceFeedbackStatus(root, html) {
+  if (!html) return;
+  root.querySelectorAll("#status-wrap, #review-status").forEach((target) => {
+    target.innerHTML = html;
+  });
+}
+
+function initializeLiveMarkup(container) {
+  if (!container || !window.Alpine?.initTree) return;
+  Array.from(container.children).forEach((child) => {
+    if (!child._x_marker) window.Alpine.initTree(child);
+  });
+}
+
+function applyFeedbackEvent(root, event) {
+  const thread = root.querySelector("#comments");
+  if (!thread || !event?.type) return;
+  if (event.type === "feedback.snapshot") {
+    thread.innerHTML = event.comments_html || `<p id="no-comments" class="text-sm text-black/40 py-8 text-center">No feedback yet.</p>`;
+    replaceFeedbackStatus(root, event.status_html);
+    initializeLiveMarkup(thread);
+  } else if (event.type === "comment.created") {
+    if (!document.getElementById(`comment-${event.comment_id}`)) {
+      thread.querySelector("#no-comments")?.remove();
+      thread.insertAdjacentHTML("beforeend", event.comment_html);
+      initializeLiveMarkup(thread);
+      if (event.comment_html.includes("comment-client") && root.dataset.feedbackChannel === "asset") {
+        assetFlowToast("New client feedback received.");
+      }
+    }
+    replaceFeedbackStatus(root, event.status_html);
+  } else if (event.type === "status.updated") {
+    replaceFeedbackStatus(root, event.status_html);
+  }
+  syncFeedbackThreads();
+}
+
+function connectFeedbackRealtime(root) {
+  if (!navigator.onLine || root.dataset.liveClosing === "true") return;
+  window.clearTimeout(feedbackReconnectTimers.get(root));
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${scheme}://${window.location.host}${feedbackSocketPath(root)}`);
+  root.feedbackSocket = socket;
+  setFeedbackLiveState(root, "connecting", "Connecting");
+  let heartbeat;
+
+  socket.addEventListener("open", () => {
+    root.dataset.liveAttempts = "0";
+    setFeedbackLiveState(root, "connected", "Live");
+    heartbeat = window.setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) socket.send("ping");
+    }, 25000);
+  });
+  socket.addEventListener("message", (message) => {
+    try {
+      applyFeedbackEvent(root, JSON.parse(message.data));
+    } catch {}
+  });
+  socket.addEventListener("close", (event) => {
+    window.clearInterval(heartbeat);
+    if (root.dataset.liveClosing === "true" || [4401, 4403, 4404].includes(event.code)) {
+      setFeedbackLiveState(root, "offline", "Offline");
+      return;
+    }
+    setFeedbackLiveState(root, "reconnecting", "Reconnecting");
+    const attempts = Number(root.dataset.liveAttempts || "0") + 1;
+    root.dataset.liveAttempts = String(attempts);
+    const timer = window.setTimeout(
+      () => connectFeedbackRealtime(root),
+      Math.min(1000 * (2 ** Math.min(attempts, 5)), 30000),
+    );
+    feedbackReconnectTimers.set(root, timer);
+  });
+  socket.addEventListener("error", () => socket.close());
+}
+
+function bindFeedbackRealtime(root = document) {
+  root.querySelectorAll("[data-feedback-live]").forEach((liveRoot) => {
+    if (liveRoot.dataset.liveBound === "true") return;
+    liveRoot.dataset.liveBound = "true";
+    connectFeedbackRealtime(liveRoot);
+  });
+}
+
+window.addEventListener("online", () => {
+  document.querySelectorAll("[data-feedback-live]").forEach((root) => {
+    if (!root.feedbackSocket || root.feedbackSocket.readyState === WebSocket.CLOSED) {
+      connectFeedbackRealtime(root);
+    }
+  });
+});
+
+window.addEventListener("beforeunload", () => {
+  document.querySelectorAll("[data-feedback-live]").forEach((root) => {
+    root.dataset.liveClosing = "true";
+    root.feedbackSocket?.close(1000, "page closing");
+  });
 });
 
 document.addEventListener(

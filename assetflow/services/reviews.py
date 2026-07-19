@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from assetflow.core.errors import AppError, NotFoundError
@@ -14,12 +14,8 @@ class ReviewService:
         self.db = db
 
     def create_link(self, asset: Asset) -> tuple[ReviewLink, str]:
-        # Generating a new link also revokes links that may have been forwarded.
-        self.db.execute(
-            update(ReviewLink)
-            .where(ReviewLink.asset_id == asset.id, ReviewLink.is_active.is_(True))
-            .values(is_active=False)
-        )
+        # Multiple secure links may point to the same asset conversation. Re-sharing
+        # must not strand a client on an invalid URL or split the feedback history.
         raw, hashed = new_token()
         link = ReviewLink(
             asset_id=asset.id,
