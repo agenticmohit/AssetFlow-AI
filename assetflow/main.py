@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -59,15 +60,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request_id = request_id or str(uuid4())
         start = time.perf_counter()
         if request.url.path.startswith("/static/uploads/"):
-            from fastapi.responses import Response
-
             return Response(status_code=404)
-        response = await call_next(request)
+        is_preview_upload = request.method == "POST" and (
+            request.url.path == "/assets"
+            or (
+                request.url.path.startswith("/assets/")
+                and request.url.path.endswith("/versions")
+            )
+        )
+        content_length = request.headers.get("content-length", "")
+        try:
+            body_size = int(content_length) if content_length else 0
+        except ValueError:
+            body_size = 0
+        # Multipart fields add a small amount of framing around the actual file.
+        # Reject clearly oversized bodies before Starlette parses/spools them so a
+        # low-memory production container cannot be taken down by one upload.
+        upload_body_limit = settings.max_upload_bytes + (1024 * 1024)
+        if is_preview_upload and body_size > upload_body_limit:
+            max_mb = settings.max_upload_bytes // 1024 // 1024
+            response = HTMLResponse(
+                f"Preview is too large. Choose a file up to {max_mb} MB.",
+                status_code=413,
+            )
+        else:
+            response = await call_next(request)
         response.headers["x-request-id"] = request_id
         response.headers["x-response-time-ms"] = f"{(time.perf_counter() - start) * 1000:.2f}"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self' 'unsafe-eval'; "
@@ -94,7 +116,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             source = origin or referer
             source_host = urlparse(source).netloc if source else ""
             request_host = request.headers.get("host", "")
-            missing_production_source = settings.environment == "production" and not source
+            fetch_site = request.headers.get("sec-fetch-site", "").lower()
+            browser_confirmed_same_origin = fetch_site == "same-origin"
+            missing_production_source = (
+                settings.environment == "production"
+                and not source
+                and not browser_confirmed_same_origin
+            )
             if missing_production_source or (source and source_host != request_host):
                 from fastapi.responses import JSONResponse
 

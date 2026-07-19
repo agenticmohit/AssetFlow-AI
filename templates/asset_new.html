@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Upload design · Make It Pop{% endblock %}
 {% block body %}
-<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar: window.innerWidth > 1000,fileName:'',newProject:false}">
+<div class="app-shell" :class="sidebar ? 'has-sidebar' : 'no-sidebar'" x-data="{sidebar: window.innerWidth > 1000,fileName:'',fileError:'',maxBytes:{{max_bytes}},newProject:false}">
   {% include "sidebar.html" %}
   <main class="ml-[276px] min-h-screen app-canvas">
     <header class="page-header">
@@ -40,9 +40,10 @@
           <label>Format<select class="field" name="asset_type"><option>Design</option><option>Instagram post</option><option>Carousel</option><option>Meta ad</option><option>Web page</option><option>Presentation</option></select></label>
         </div>
         <label class="upload-zone">
-          <input type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" required class="hidden" @change="fileName=$event.target.files[0]?.name || ''">
+          <input type="file" name="file" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" required class="hidden" @change="const picked=$event.target.files[0]; if(picked && picked.size>maxBytes){fileError='Choose a preview up to {{max_mb}} MB';fileName='';$event.target.value=''}else{fileError='';fileName=picked?.name || ''}">
           <span>⇧</span><b x-text="fileName || 'Choose preview file'"></b><small>PNG, JPG, GIF, WEBP or PDF · up to {{max_mb}} MB</small>
         </label>
+        <p x-cloak x-show="fileError" class="upload-validation-error" role="alert" x-text="fileError"></p>
         <label>Context for reviewers<textarea class="field h-24" name="notes" placeholder="What changed, what should reviewers focus on?"></textarea></label>
         <button class="btn-dark w-full justify-center">Upload & open review →</button>
       </form>

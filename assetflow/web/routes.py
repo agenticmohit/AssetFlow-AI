@@ -1,4 +1,6 @@
+import logging
 import mimetypes
+from contextlib import suppress
 from pathlib import Path
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -37,6 +39,7 @@ from assetflow.services.workspaces import WorkspaceService
 router = APIRouter(include_in_schema=False)
 templates = Environment(loader=FileSystemLoader("templates"), autoescape=select_autoescape())
 DASHBOARD_PAGE_SIZE = 6
+logger = logging.getLogger("assetflow.uploads")
 
 
 def render(name: str, request: Request, **context):
@@ -180,18 +183,21 @@ async def save_upload(file: UploadFile, settings) -> str | None:
     suffix = Path(file.filename or "asset.png").suffix.lower()
     if suffix not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf"}:
         return None
-    settings.upload_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid4().hex}{suffix}"
     destination = settings.upload_dir / filename
     total = 0
-    with destination.open("wb") as output:
-        while chunk := await file.read(1024 * 1024):
-            total += len(chunk)
-            if total > settings.max_upload_bytes:
-                output.close()
-                destination.unlink(missing_ok=True)
-                raise ValueError("File too large")
-            output.write(chunk)
+    try:
+        settings.upload_dir.mkdir(parents=True, exist_ok=True)
+        with destination.open("wb") as output:
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > settings.max_upload_bytes:
+                    raise ValueError("File too large")
+                output.write(chunk)
+    except (OSError, ValueError):
+        with suppress(OSError):
+            destination.unlink(missing_ok=True)
+        raise
     return f"managed://{filename}"
 
 
@@ -536,7 +542,8 @@ def new_asset_page(request: Request, project_id: int | None = None, db: Session 
     if not user or not membership:
         return RedirectResponse("/login", status_code=303)
     rows = list(db.scalars(select(Project).where(Project.workspace_id == membership.workspace_id).order_by(Project.name)))
-    return render("asset_new.html", request, project_rows=rows, selected_project=project_id, max_mb=request.app.state.settings.max_upload_bytes // 1024 // 1024, **shell_context(db, user, membership, "assets"))
+    settings = request.app.state.settings
+    return render("asset_new.html", request, project_rows=rows, selected_project=project_id, max_mb=settings.max_upload_bytes // 1024 // 1024, max_bytes=settings.max_upload_bytes, **shell_context(db, user, membership, "assets"))
 
 
 @router.post("/assets")
@@ -578,23 +585,34 @@ async def create_asset(
         file_url = await save_upload(file, request.app.state.settings)
     except ValueError:
         return HTMLResponse("File too large", 413)
+    except OSError:
+        logger.exception("Preview storage unavailable during initial upload")
+        return HTMLResponse(
+            "Preview storage is temporarily unavailable. Please try again.", 503
+        )
     if not file_url:
         return HTMLResponse("Unsupported file type", 415)
-    if create_inline:
-        project = Project(
-            workspace_id=membership.workspace_id,
-            name=new_project_name.strip(),
-            client_name=new_client_name.strip() or None,
-            description="",
-            client_review_enabled=bool(new_client_name.strip()),
-        )
-        db.add(project)
+    saved_preview = request.app.state.settings.upload_dir / file_url.removeprefix("managed://")
+    try:
+        if create_inline:
+            project = Project(
+                workspace_id=membership.workspace_id,
+                name=new_project_name.strip(),
+                client_name=new_client_name.strip() or None,
+                description="",
+                client_review_enabled=bool(new_client_name.strip()),
+            )
+            db.add(project)
+            db.flush()
+        asset = Asset(project_id=project.id, title=title.strip(), asset_type=asset_type.strip(), status=AssetStatus.IN_REVIEW, assigned_designer_id=user.id)
+        db.add(asset)
         db.flush()
-    asset = Asset(project_id=project.id, title=title.strip(), asset_type=asset_type.strip(), status=AssetStatus.IN_REVIEW, assigned_designer_id=user.id)
-    db.add(asset)
-    db.flush()
-    db.add(AssetVersion(asset_id=asset.id, number=1, file_url=file_url, notes=notes.strip(), uploaded_by_id=user.id))
-    db.commit()
+        db.add(AssetVersion(asset_id=asset.id, number=1, file_url=file_url, notes=notes.strip(), uploaded_by_id=user.id))
+        db.commit()
+    except Exception:
+        db.rollback()
+        remove_preview_files([saved_preview])
+        raise
     return RedirectResponse(f"/assets/{asset.id}", status_code=303)
 
 
@@ -609,7 +627,8 @@ def asset_detail(asset_id: int, request: Request, db: Session = Depends(get_db))
     comments = [comment_card(comment, db) for comment in asset.comments]
     tasks = [{"id": task.id, "text": task.text, "done": task.is_done} for task in asset.tasks]
     ai_insight = CreativeAIService(db).insight(asset)
-    return render("asset.html", request, asset=asset_card(asset), comments=comments, tasks=tasks, ai_insight=ai_insight, comment_request_id=uuid4().hex, max_mb=request.app.state.settings.max_upload_bytes // 1024 // 1024, **shell_context(db, user, membership, "assets"))
+    settings = request.app.state.settings
+    return render("asset.html", request, asset=asset_card(asset), comments=comments, tasks=tasks, ai_insight=ai_insight, comment_request_id=uuid4().hex, max_mb=settings.max_upload_bytes // 1024 // 1024, max_bytes=settings.max_upload_bytes, **shell_context(db, user, membership, "assets"))
 
 
 @router.post("/assets/{asset_id}/comments", response_class=HTMLResponse)
@@ -744,13 +763,24 @@ async def upload_version(asset_id: int, request: Request, file: UploadFile, note
         file_url = await save_upload(file, request.app.state.settings)
     except ValueError:
         return HTMLResponse("File too large", 413)
+    except OSError:
+        logger.exception("Preview storage unavailable during version upload")
+        return HTMLResponse(
+            "Preview storage is temporarily unavailable. Please try again.", 503
+        )
     if not file_url:
         return HTMLResponse("Unsupported file type", 415)
-    number = (db.scalar(select(func.max(AssetVersion.number)).where(AssetVersion.asset_id == asset_id)) or 0) + 1
-    db.add(AssetVersion(asset_id=asset_id, number=number, file_url=file_url, notes=notes.strip(), uploaded_by_id=user.id))
-    asset.status = AssetStatus.IN_REVIEW
-    asset.approved_at = None
-    db.commit()
+    saved_preview = request.app.state.settings.upload_dir / file_url.removeprefix("managed://")
+    try:
+        number = (db.scalar(select(func.max(AssetVersion.number)).where(AssetVersion.asset_id == asset_id)) or 0) + 1
+        db.add(AssetVersion(asset_id=asset_id, number=number, file_url=file_url, notes=notes.strip(), uploaded_by_id=user.id))
+        asset.status = AssetStatus.IN_REVIEW
+        asset.approved_at = None
+        db.commit()
+    except Exception:
+        db.rollback()
+        remove_preview_files([saved_preview])
+        raise
     return RedirectResponse(f"/assets/{asset_id}", status_code=303)
 
 

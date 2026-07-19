@@ -182,6 +182,48 @@ def test_upload_validation_and_not_found_paths(client, settings):
     assert too_large.status_code == 413
 
 
+def test_oversized_upload_body_is_rejected_before_multipart_parsing(client, settings):
+    web_owner(client)
+    response = client.post(
+        "/assets",
+        content=b"oversized-placeholder",
+        headers={
+            "content-type": "multipart/form-data; boundary=preview",
+            "content-length": str(settings.max_upload_bytes + (1024 * 1024) + 1),
+        },
+    )
+
+    assert response.status_code == 413
+    assert "up to 10 MB" in response.text
+
+
+def test_storage_failure_returns_retryable_error_without_creating_project(
+    client, db, monkeypatch
+):
+    web_owner(client)
+
+    async def unavailable_storage(*_args, **_kwargs):
+        raise OSError("simulated storage outage")
+
+    monkeypatch.setattr("assetflow.web.routes.save_upload", unavailable_storage)
+    response = client.post(
+        "/assets",
+        data={
+            "project_id": "new",
+            "new_project_name": "Must not be created",
+            "title": "First upload",
+        },
+        files={"file": ("preview.png", b"preview", "image/png")},
+    )
+
+    assert response.status_code == 503
+    assert "temporarily unavailable" in response.text
+    assert (
+        db.scalar(select(func.count(Project.id)).where(Project.name == "Must not be created"))
+        == 0
+    )
+
+
 def test_upload_can_create_and_use_a_new_project_inline(client, db):
     web_owner(client)
     upload_page = client.get("/assets/new")
@@ -215,6 +257,47 @@ def test_upload_can_create_and_use_a_new_project_inline(client, db):
         db.scalar(select(func.count(Project.id)).where(Project.name == "Summer campaign"))
         == 1
     )
+
+
+def test_first_time_freelancer_can_upload_real_preview_and_open_review(client, db, settings):
+    signup = client.post(
+        "/signup",
+        data={
+            "email": "first-upload@example.com",
+            "name": "First Upload Designer",
+            "password": "strong-password",
+            "workspace_name": "",
+        },
+        follow_redirects=False,
+    )
+    assert signup.status_code == 303
+    settings.environment = "production"
+
+    preview = Path("static/demo/lookbook-poster.png").read_bytes()
+    created = client.post(
+        "/assets",
+        data={
+            "project_id": "new",
+            "new_project_name": "First campaign",
+            "new_client_name": "",
+            "title": "First design",
+            "asset_type": "Poster",
+            "notes": "Review the visual direction",
+        },
+        files={"file": ("first-design.png", preview, "image/png")},
+        headers={"Sec-Fetch-Site": "same-origin"},
+        follow_redirects=False,
+    )
+
+    assert created.status_code == 303
+    review_path = created.headers["location"]
+    assert review_path.startswith("/assets/")
+    review = client.get(review_path)
+    assert review.status_code == 200
+    assert "First design" in review.text
+    version = db.scalar(select(AssetVersion).order_by(AssetVersion.id.desc()))
+    assert version.file_url.startswith("managed://")
+    assert (settings.upload_dir / version.file_url.removeprefix("managed://")).stat().st_size == len(preview)
 
 
 def test_inline_project_is_not_created_when_upload_is_invalid(client, db):

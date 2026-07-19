@@ -169,10 +169,33 @@ def test_cross_site_cookie_write_is_blocked(client):
     assert response.json()["error"]["code"] == "invalid_origin"
 
 
+def test_production_accepts_same_origin_browser_form_without_origin_header(client, settings):
+    signup(client, "same-origin@example.com", "Same Origin Studio")
+    settings.environment = "production"
+
+    response = client.post(
+        "/logout",
+        headers={"Sec-Fetch-Site": "same-origin"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+
+
+def test_production_rejects_unverifiable_cookie_write(client, settings):
+    signup(client, "missing-origin@example.com", "Missing Origin Studio")
+    settings.environment = "production"
+
+    response = client.post("/logout", follow_redirects=False)
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "invalid_origin"
+
+
 def test_browser_responses_include_security_and_privacy_headers(client):
     response = client.get("/login")
     assert response.headers["x-frame-options"] == "DENY"
-    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert response.headers["cache-control"] == "no-store"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
